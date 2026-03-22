@@ -907,11 +907,51 @@ function drawScan(c,w,h,pts,lw){
 
 function drawCircles(c,w,h,pts,lw){
   c.lineWidth=lw;
+  // Precompute nearest-neighbor distances to drive radius variation
+  const nearDist=pts.map((p,i)=>{
+    let min=1e9;
+    for(let j=0;j<pts.length;j++){
+      if(i===j) continue;
+      const d=Math.hypot(p[0]-pts[j][0],p[1]-pts[j][1]);
+      if(d<min) min=d;
+    }
+    return min===1e9 ? w*.04 : min;
+  });
+  const minD=Math.min(...nearDist), maxD=Math.max(...nearDist);
+  const rng2=rng(S.p.seed*31+Math.floor(vid.currentTime*7));
+
   pts.forEach(([x,y],i)=>{
-    c.strokeStyle=getColor(i);const r=Math.max(w*.02,8);
-    c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.stroke();
-    if(i%2===0){c.globalAlpha=S.p.opacity*.35;c.beginPath();c.arc(x,y,r*.5,0,Math.PI*2);c.stroke();c.globalAlpha=S.p.opacity;}
-    c.fillStyle=getColor(i);c.beginPath();c.arc(x,y,lw*1.5,0,Math.PI*2);c.fill();
+    c.strokeStyle=getColor(i);
+
+    // Radius: blend of neighbor distance + position in frame + small deterministic jitter
+    const normD = maxD>minD ? (nearDist[i]-minD)/(maxD-minD) : 0.5;
+    const posWeight = 0.4 + (x/w)*0.3 + (1-y/h)*0.3; // larger near top-right
+    const jitter = rng2();
+    const r = Math.max(w*.008, w * (0.012 + normD*0.055 + posWeight*0.02 + jitter*0.02));
+
+    // Main circle
+    c.lineWidth = lw * (0.6 + jitter*0.8);
+    c.beginPath(); c.arc(x,y,r,0,Math.PI*2); c.stroke();
+
+    // Inner ring — only some points, scaled differently
+    if(i%3===0){
+      c.globalAlpha=S.p.opacity*.3;
+      c.lineWidth=lw*.5;
+      c.beginPath(); c.arc(x,y,r*(.3+jitter*.35),0,Math.PI*2); c.stroke();
+      c.globalAlpha=S.p.opacity;
+    }
+    // Outer ghost ring — sparse
+    if(i%5===0){
+      c.globalAlpha=S.p.opacity*.15;
+      c.lineWidth=lw*.4;
+      c.beginPath(); c.arc(x,y,r*1.7,0,Math.PI*2); c.stroke();
+      c.globalAlpha=S.p.opacity;
+    }
+
+    // Center dot
+    c.lineWidth=lw;
+    c.fillStyle=getColor(i);
+    c.beginPath(); c.arc(x,y,Math.max(1.5,lw*1.2),0,Math.PI*2); c.fill();
   });
 }
 
