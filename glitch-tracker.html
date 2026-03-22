@@ -346,11 +346,22 @@ input[type=number]:focus{border-color:var(--red)}
           style="display:none;background:#333;margin-top:4px">■ CANCEL</button>
       </div>
       <div class="exp-section" id="secMp4">
-        <div class="clabel" style="margin-bottom:5px">VIDEO QUALITY</div>
+        <div class="clabel" style="margin-bottom:5px">OUTPUT RESOLUTION</div>
+        <div class="vq-row" id="resRow">
+          <button class="vqbtn" onclick="setVidRes('src',this)">SOURCE</button>
+          <button class="vqbtn on" onclick="setVidRes('hd',this)">HD 1080p</button>
+          <button class="vqbtn" onclick="setVidRes('2k',this)">2K</button>
+          <button class="vqbtn" onclick="setVidRes('4k',this)">4K</button>
+        </div>
+        <div id="vidResBadge" style="font-family:var(--mono);font-size:9px;color:#2a6b2e;
+          padding:4px 6px;border:1px solid #1a3d1e;background:#0a1f0c;margin-bottom:9px">
+          1920 × 1080
+        </div>
+        <div class="clabel" style="margin-bottom:5px">BITRATE</div>
         <div class="vq-row">
-          <button class="vqbtn" onclick="setVQ(2000000,this)">2Mbps</button>
-          <button class="vqbtn on" onclick="setVQ(8000000,this)">8Mbps</button>
-          <button class="vqbtn" onclick="setVQ(20000000,this)">20Mbps</button>
+          <button class="vqbtn" onclick="setVQ(8000000,this)">8Mbps</button>
+          <button class="vqbtn on" onclick="setVQ(20000000,this)">20Mbps</button>
+          <button class="vqbtn" onclick="setVQ(50000000,this)">50Mbps</button>
         </div>
         <div class="clabel" style="margin-bottom:5px">FPS</div>
         <div class="vq-row">
@@ -358,8 +369,8 @@ input[type=number]:focus{border-color:var(--red)}
           <button class="vqbtn on" onclick="setFPS(30,this)">30</button>
           <button class="vqbtn" onclick="setFPS(60,this)">60</button>
         </div>
-        <div class="erow"><label>START %</label><input type="number" id="mStart" value="0" min="0" max="100"></div>
-        <div class="erow"><label>END %</label><input type="number" id="mEnd" value="100" min="0" max="100"></div>
+        <div class="erow"><label>START %</label><input type="number" id="mStart" value="0"   min="0" max="100"></div>
+        <div class="erow"><label>END %</label>  <input type="number" id="mEnd"   value="100" min="0" max="100"></div>
         <div id="mp4Support" style="font-family:var(--mono);font-size:9px;color:#555;margin-bottom:6px;letter-spacing:.06em"></div>
         <button class="bexp" id="btnMp4Export" onclick="doMp4Export()" disabled>▶ RECORD MP4</button>
         <button class="bexp" id="btnMp4Stop" onclick="stopMp4()" style="display:none;background:#333">■ STOP & SAVE</button>
@@ -391,7 +402,7 @@ const S = {
   coordStyle:'index',   // index | xy | norm | mixed
   trackMode:'edge',     // edge | motion | bright | dark | subject | contour
   multiColors:['#e8291c','#00ffcc','#ffffff','#ffdd00','#aa44ff','#ff6b00','#00e5ff'],
-  exportScale:2, videoBitrate:8000000, videoFPS:30,
+  exportScale:2, videoBitrate:20000000, videoFPS:30, videoRes:'hd',
   dispW:0, dispH:0,
   edgePoints:[], lastEdgeTime:-999,
   edgeVizOn:false,
@@ -707,18 +718,39 @@ function glPass(){
   gl.drawArrays(gl.TRIANGLE_STRIP,0,4);return true;
 }
 
+// Edge detection runs on a separate interval so it never blocks rendering
+let edgeWorkerTimer = null;
+function startEdgeWorker(){
+  stopEdgeWorker();
+  // Rebuild edge points at ~12fps (fast enough for tracking, light on CPU)
+  edgeWorkerTimer = setInterval(()=>{
+    if(!S.loaded || !S.playing) return;
+    S.edgePoints = buildEdgePoints(S.dispW, S.dispH);
+    S.lastEdgeTime = vid.currentTime;
+  }, 1000/12);
+}
+function stopEdgeWorker(){
+  if(edgeWorkerTimer){ clearInterval(edgeWorkerTimer); edgeWorkerTimer=null; }
+}
+
+// Render loop — targets 24fps via timestamp gating
+const TARGET_FPS = 24;
+const FRAME_MS   = 1000 / TARGET_FPS;
+let lastFrameMs  = 0;
+
 function render(){
-  if(!S.loaded)return;
-  if(!glPass())return;
-  const w=ov.width,h=ov.height;
-  const t=vid.currentTime;
-  if(Math.abs(t-S.lastEdgeTime)>0.025||S.edgePoints.length===0){
-    S.edgePoints=buildEdgePoints(w,h);
-    S.lastEdgeTime=t;
+  if(!S.loaded) return;
+  if(!glPass()) return;
+  const w = ov.width, h = ov.height;
+  const t = vid.currentTime;
+  // For static (paused) frames, rebuild edge immediately
+  if(!S.playing && (Math.abs(t - S.lastEdgeTime) > 0.01 || S.edgePoints.length === 0)){
+    S.edgePoints   = buildEdgePoints(w, h);
+    S.lastEdgeTime = t;
   }
-  ovCtx.clearRect(0,0,w,h);
-  if(S.fx.wire)drawWireOverlay(ovCtx,w,h,t,false,S.edgePoints);
-  if(S.edgeVizOn)drawEdgeViz(w,h);
+  ovCtx.clearRect(0, 0, w, h);
+  if(S.fx.wire)    drawWireOverlay(ovCtx, w, h, t, false, S.edgePoints);
+  if(S.edgeVizOn)  drawEdgeViz(w, h);
   updateUI();
 }
 
@@ -948,7 +980,9 @@ function loadVid(file){
   document.getElementById('btnMp4Export').disabled=false;
   dropZone.classList.add('hidden');resize();
   setStatus(`${vid.videoWidth}×${vid.videoHeight} — ${vid.duration.toFixed(1)}s`);
-  checkMp4Support();seekTo(.01);
+  checkMp4Support();
+  updateVidResBadge();
+  seekTo(.01);
 }));
 
 function seekTo(t){
@@ -961,12 +995,36 @@ function seekTo(t){
 // PLAYBACK
 // ═══════════════════════════════════════════════
 function togglePlay(){
-  if(!S.loaded)return;S.playing=!S.playing;
-  const btn=document.getElementById('btnPlay');
+  if(!S.loaded) return;
+  S.playing = !S.playing;
+  const btn = document.getElementById('btnPlay');
   if(S.playing){
-    btn.textContent='⏸ PAUSE';btn.classList.add('on');vid.play();
-    function loop(){if(!S.playing)return;render();S.rafId=requestAnimationFrame(loop);}loop();
-  }else{btn.textContent='▶ PLAY';btn.classList.remove('on');vid.pause();cancelAnimationFrame(S.rafId);}
+    btn.textContent = '⏸ PAUSE';
+    btn.classList.add('on');
+    vid.play();
+    lastFrameMs = 0;
+    startEdgeWorker();
+    function loop(now){
+      if(!S.playing) return;
+      // Gate to TARGET_FPS — skip if not enough time has elapsed
+      if(now - lastFrameMs >= FRAME_MS){
+        lastFrameMs = now - ((now - lastFrameMs) % FRAME_MS); // stay in sync
+        render();
+      }
+      S.rafId = requestAnimationFrame(loop);
+    }
+    S.rafId = requestAnimationFrame(loop);
+  } else {
+    btn.textContent = '▶ PLAY';
+    btn.classList.remove('on');
+    vid.pause();
+    cancelAnimationFrame(S.rafId);
+    stopEdgeWorker();
+    // Rebuild edge once for the paused frame
+    S.edgePoints = buildEdgePoints(S.dispW, S.dispH);
+    S.lastEdgeTime = vid.currentTime;
+    render();
+  }
 }
 function stepFrame(dir){if(!S.loaded)return;if(S.playing)togglePlay();seekTo(vid.currentTime+dir/30);}
 function onScrub(v){if(!S.loaded)return;seekTo((v/1000)*S.duration);}
@@ -1025,6 +1083,28 @@ function setCustomColor(val){S.wireColor=val;document.getElementById('colorHex')
 function setQuality(scale,btn){S.exportScale=scale;document.querySelectorAll('.qbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');updateResBadge();}
 function setVQ(bps,btn){S.videoBitrate=bps;document.querySelectorAll('.vqbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
 function setFPS(fps,btn){S.videoFPS=fps;document.querySelectorAll('.vq-row')[1].querySelectorAll('.vqbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
+
+function setVidRes(res, btn){
+  S.videoRes = res;
+  document.querySelectorAll('#resRow .vqbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  updateVidResBadge();
+}
+function getVidOutSize(){
+  if(!S.loaded) return [1920,1080];
+  const vw=vid.videoWidth, vh=vid.videoHeight, ar=vw/vh;
+  switch(S.videoRes){
+    case 'src':  return [vw, vh];
+    case 'hd':   return ar>=1 ? [1920, Math.round(1920/ar)] : [Math.round(1080*ar), 1080];
+    case '2k':   return ar>=1 ? [2560, Math.round(2560/ar)] : [Math.round(1440*ar), 1440];
+    case '4k':   return ar>=1 ? [3840, Math.round(3840/ar)] : [Math.round(2160*ar), 2160];
+    default:     return [1920, Math.round(1920/ar)];
+  }
+}
+function updateVidResBadge(){
+  const [w,h] = getVidOutSize();
+  document.getElementById('vidResBadge').textContent = `${w} × ${h} px`;
+}
 function switchExportTab(tab){
   ['png','mp4'].forEach(t=>{document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('on',t===tab);document.getElementById('sec'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('show',t===tab);});
 }
@@ -1165,39 +1245,78 @@ function checkMp4Support(){
   else{el.textContent='⚠ MediaRecorder not supported';el.style.color='#b71c1c';document.getElementById('btnMp4Export').disabled=true;}
 }
 function getSupportedMime(){const t=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];return t.find(x=>MediaRecorder.isTypeSupported(x))||'video/webm';}
-let recCanvas=null,recCtx=null;
+
+let recCanvas=null, recCtx=null, recOgl=null;
+
 async function doMp4Export(){
-  if(!S.loaded)return;if(S.playing)togglePlay();
+  if(!S.loaded) return;
+  if(S.playing) togglePlay();
+
   const startT=(parseFloat(document.getElementById('mStart').value)/100)*S.duration;
   const endT=Math.min((parseFloat(document.getElementById('mEnd').value)/100)*S.duration,S.duration);
-  recCanvas=document.createElement('canvas');recCanvas.width=S.dispW;recCanvas.height=S.dispH;
-  recCtx=recCanvas.getContext('2d');
-  const mime=getSupportedMime();const ext=mime.startsWith('video/mp4')?'mp4':'webm';
-  S.recChunks=[];S.prevLum=null;
-  const stream=recCanvas.captureStream(S.videoFPS);
-  S.mediaRec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:S.videoBitrate});
-  S.mediaRec.ondataavailable=e=>{if(e.data.size>0)S.recChunks.push(e.data);};
-  S.mediaRec.onstop=()=>saveRecording(ext);S.mediaRec.start(100);
-  document.getElementById('btnMp4Export').style.display='none';
-  document.getElementById('btnMp4Stop').style.display='block';
-  document.getElementById('recDot').classList.add('show');showProg(true);
-  await seekVid(startT);vid.currentTime=startT;vid.play();S.playing=true;
-  document.getElementById('btnPlay').textContent='⏸ PAUSE';document.getElementById('btnPlay').classList.add('on');
-  let lastT=-1;
+
+  // Determine output size
+  const [rw, rh] = getVidOutSize();
+
+  // Main composite canvas at target resolution
+  recCanvas = document.createElement('canvas');
+  recCanvas.width  = rw;
+  recCanvas.height = rh;
+  recCtx = recCanvas.getContext('2d');
+
+  // Offscreen WebGL at same target resolution for HQ render
+  recOgl = makeOffscreenGL(rw, rh);
+
+  const mime = getSupportedMime();
+  const ext  = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+  S.recChunks = []; S.prevLum = null;
+
+  const stream = recCanvas.captureStream(S.videoFPS);
+  S.mediaRec   = new MediaRecorder(stream, {mimeType:mime, videoBitsPerSecond:S.videoBitrate});
+  S.mediaRec.ondataavailable = e=>{ if(e.data.size>0) S.recChunks.push(e.data); };
+  S.mediaRec.onstop = ()=>saveRecording(ext);
+  S.mediaRec.start(100);
+
+  document.getElementById('btnMp4Export').style.display = 'none';
+  document.getElementById('btnMp4Stop').style.display   = 'block';
+  document.getElementById('recDot').classList.add('show');
+  showProg(true);
+
+  await seekVid(startT);
+  vid.currentTime = startT;
+  vid.play();
+  S.playing = true;
+  document.getElementById('btnPlay').textContent='⏸ PAUSE';
+  document.getElementById('btnPlay').classList.add('on');
+
+  let lastT = -1;
   function recLoop(){
-    if(!S.mediaRec||S.mediaRec.state!=='recording'){stopMp4();return;}
-    const t=vid.currentTime;if(t>=endT){stopMp4();return;}
-    const pct=(t-startT)/(endT-startT);
-    setProg(pct,`REC ${t.toFixed(2)}s / ${endT.toFixed(2)}s`);
-    if(t!==lastT){
-      lastT=t;
-      if(Math.abs(t-S.lastEdgeTime)>0.025||S.edgePoints.length===0){S.edgePoints=buildEdgePoints(recCanvas.width,recCanvas.height);S.lastEdgeTime=t;}
-      glPass();recCtx.clearRect(0,0,recCanvas.width,recCanvas.height);
-      recCtx.drawImage(glCanvas,0,0,recCanvas.width,recCanvas.height);
-      if(S.fx.wire)drawWireOverlay(recCtx,recCanvas.width,recCanvas.height,t,false,S.edgePoints);
+    if(!S.mediaRec || S.mediaRec.state !== 'recording'){ stopMp4(); return; }
+    const t = vid.currentTime;
+    if(t >= endT){ stopMp4(); return; }
+
+    const pct = (t-startT)/(endT-startT);
+    setProg(pct, `REC ${t.toFixed(2)}s / ${endT.toFixed(2)}s  —  ${rw}×${rh}`);
+
+    if(t !== lastT){
+      lastT = t;
+      // Rebuild edge points at output resolution
+      if(Math.abs(t-S.lastEdgeTime)>0.025 || S.edgePoints.length===0){
+        S.edgePoints  = buildEdgePoints(rw, rh);
+        S.lastEdgeTime = t;
+      }
+      // Render video via offscreen HQ WebGL → composite canvas
+      renderOffscreen(recOgl, rw, rh);
+      recCtx.clearRect(0, 0, rw, rh);
+      recCtx.drawImage(recOgl.canvas, 0, 0, rw, rh);
+      if(S.fx.wire) drawWireOverlay(recCtx, rw, rh, t, true, S.edgePoints);
+      // Also update the preview canvas (low-res display)
+      glPass();
     }
-    updateUI();S.rafId=requestAnimationFrame(recLoop);
-  }recLoop();
+    updateUI();
+    S.rafId = requestAnimationFrame(recLoop);
+  }
+  recLoop();
 }
 function stopMp4(){
   cancelAnimationFrame(S.rafId);if(S.mediaRec&&S.mediaRec.state!=='inactive')S.mediaRec.stop();
