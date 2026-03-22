@@ -1,0 +1,1229 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GLITCH FRAME</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --red: #e8291c;
+    --teal: #2d8fa0;
+    --bg: #0a0a0a;
+    --surface: #111;
+    --text: #e0e0e0;
+    --mono: 'Share Tech Mono', monospace;
+    --sans: 'Rajdhani', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1e1e1e;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.25em;
+    color: var(--red);
+  }
+
+  .logo span { color: #555; margin: 0 6px; }
+
+  .status-bar {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #444;
+    letter-spacing: 0.1em;
+  }
+
+  .main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    height: calc(100vh - 57px);
+  }
+
+  /* ---- Canvas zone ---- */
+  .canvas-zone {
+    position: relative;
+    background: #060606;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  #mainCanvas {
+    max-width: 100%;
+    max-height: 100%;
+    display: block;
+  }
+
+  .upload-prompt {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    pointer-events: none;
+  }
+
+  .upload-prompt.hidden { display: none; }
+
+  .upload-icon {
+    width: 60px;
+    height: 60px;
+    border: 1px solid #282828;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .upload-icon svg { opacity: 0.25; }
+
+  .upload-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #333;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .upload-btn-wrap {
+    pointer-events: all;
+  }
+
+  /* ---- Sidebar ---- */
+  .sidebar {
+    border-left: 1px solid #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    background: var(--surface);
+  }
+
+  .panel {
+    border-bottom: 1px solid #1a1a1a;
+    padding: 20px;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: #444;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .panel-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--red);
+  }
+
+  /* Upload button */
+  .btn-upload {
+    width: 100%;
+    background: transparent;
+    border: 1px solid #2a2a2a;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    padding: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-upload:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  #fileInput { display: none; }
+
+  /* Slider controls */
+  .control-row {
+    margin-bottom: 14px;
+  }
+
+  .control-label {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #555;
+    margin-bottom: 6px;
+    letter-spacing: 0.1em;
+  }
+
+  .control-label .val {
+    color: var(--red);
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 2px;
+    background: #222;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--red);
+    cursor: pointer;
+    border: none;
+  }
+
+  input[type=range]::-webkit-slider-thumb:hover {
+    background: #fff;
+  }
+
+  /* Toggle row */
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #555;
+    letter-spacing: 0.1em;
+  }
+
+  .toggle {
+    width: 32px;
+    height: 16px;
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .toggle.on { background: var(--red); border-color: var(--red); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 10px;
+    height: 10px;
+    background: #555;
+    transition: transform 0.2s, background 0.2s;
+  }
+
+  .toggle.on::after {
+    transform: translateX(16px);
+    background: #fff;
+  }
+
+  /* Frame scrubber */
+  .frame-display {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: #444;
+    text-align: center;
+    margin-top: 8px;
+    letter-spacing: 0.1em;
+  }
+
+  .frame-display span { color: var(--red); }
+
+  /* Playback controls */
+  .playback {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .btn-sm {
+    flex: 1;
+    padding: 8px;
+    background: transparent;
+    border: 1px solid #222;
+    color: #555;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+
+  .btn-sm:hover { border-color: #444; color: var(--text); }
+  .btn-sm.active { border-color: var(--red); color: var(--red); }
+
+  /* Export section */
+  .export-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .export-input-row label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #555;
+    letter-spacing: 0.1em;
+    flex-shrink: 0;
+  }
+
+  input[type=number] {
+    background: #0a0a0a;
+    border: 1px solid #222;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 8px;
+    width: 70px;
+    outline: none;
+  }
+
+  input[type=number]:focus { border-color: var(--red); }
+
+  .btn-export {
+    width: 100%;
+    padding: 14px;
+    background: var(--red);
+    border: none;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-export:hover { opacity: 0.85; }
+  .btn-export:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Progress */
+  .progress-wrap {
+    margin-top: 10px;
+    display: none;
+  }
+
+  .progress-wrap.show { display: block; }
+
+  .progress-bar-bg {
+    height: 2px;
+    background: #1e1e1e;
+    margin-bottom: 6px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--red);
+    width: 0%;
+    transition: width 0.1s;
+  }
+
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #444;
+    letter-spacing: 0.1em;
+  }
+
+  /* Effect presets */
+  .preset-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .preset-btn {
+    padding: 8px;
+    background: transparent;
+    border: 1px solid #1e1e1e;
+    color: #444;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.15s;
+    text-align: left;
+  }
+
+  .preset-btn:hover { border-color: #333; color: #888; }
+  .preset-btn.active { border-color: var(--red); color: var(--red); }
+
+  /* Frame strip */
+  .strip-wrap {
+    display: flex;
+    gap: 3px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .strip-thumb {
+    width: 28px;
+    height: 28px;
+    object-fit: cover;
+    opacity: 0.4;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: opacity 0.15s, border-color 0.15s;
+  }
+
+  .strip-thumb:hover { opacity: 0.8; }
+  .strip-thumb.active { opacity: 1; border-color: var(--red); }
+
+  /* Scanline overlay on canvas zone */
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 2px,
+      rgba(0,0,0,0.08) 2px,
+      rgba(0,0,0,0.08) 4px
+    );
+    pointer-events: none;
+    z-index: 2;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">GLITCH<span>//</span>FRAME</div>
+  <div class="status-bar" id="statusBar">READY — UPLOAD VIDEO TO BEGIN</div>
+</header>
+
+<div class="main">
+
+  <!-- Canvas Zone -->
+  <div class="canvas-zone">
+    <div class="scanlines"></div>
+    <canvas id="mainCanvas"></canvas>
+    <div class="upload-prompt" id="uploadPrompt">
+      <div class="upload-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <div class="upload-label">DRAG & DROP or click UPLOAD</div>
+    </div>
+  </div>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+
+    <!-- Upload -->
+    <div class="panel">
+      <div class="panel-title">INPUT</div>
+      <input type="file" id="fileInput" accept="video/*">
+      <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
+        ▲ UPLOAD VIDEO
+      </button>
+      <div class="frame-display" style="margin-top:10px">
+        FRAME <span id="currentFrameNum">0</span> / <span id="totalFrameNum">0</span>
+        &nbsp;&nbsp; <span id="timeDisplay">0.00s</span>
+      </div>
+    </div>
+
+    <!-- Playback -->
+    <div class="panel">
+      <div class="panel-title">PLAYBACK</div>
+      <div class="playback">
+        <button class="btn-sm" id="btnPrev" onclick="stepFrame(-1)">◀◀</button>
+        <button class="btn-sm" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
+        <button class="btn-sm" id="btnNext" onclick="stepFrame(1)">▶▶</button>
+      </div>
+      <div class="control-row">
+        <div class="control-label">SCRUB <span class="val" id="scrubVal">0</span></div>
+        <input type="range" id="scrubber" min="0" max="100" value="0" oninput="scrubVideo(this.value)">
+      </div>
+    </div>
+
+    <!-- Effects -->
+    <div class="panel">
+      <div class="panel-title">EFFECTS</div>
+
+      <div class="toggle-row">
+        <span>WIREFRAME LINES</span>
+        <div class="toggle on" id="togWire" onclick="toggleEffect('wire')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>COORD LABELS</span>
+        <div class="toggle on" id="togCoord" onclick="toggleEffect('coord')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>MESH WARP</span>
+        <div class="toggle on" id="togWarp" onclick="toggleEffect('warp')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>HORIZONTAL GLITCH</span>
+        <div class="toggle on" id="togHGlitch" onclick="toggleEffect('hglitch')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>PIXEL SCATTER</span>
+        <div class="toggle" id="togScatter" onclick="toggleEffect('scatter')"></div>
+      </div>
+      <div class="toggle-row">
+        <span>CHROMATIC ABB</span>
+        <div class="toggle" id="togChroma" onclick="toggleEffect('chroma')"></div>
+      </div>
+
+      <div class="control-row" style="margin-top:12px">
+        <div class="control-label">WARP INTENSITY <span class="val" id="warpVal">0.5</span></div>
+        <input type="range" id="warpSlider" min="0" max="100" value="50" oninput="updateParam('warp',this.value)">
+      </div>
+      <div class="control-row">
+        <div class="control-label">LINE DENSITY <span class="val" id="lineVal">6</span></div>
+        <input type="range" id="lineSlider" min="3" max="16" value="6" oninput="updateParam('line',this.value)">
+      </div>
+      <div class="control-row">
+        <div class="control-label">GLITCH STRENGTH <span class="val" id="glitchVal">0.5</span></div>
+        <input type="range" id="glitchSlider" min="0" max="100" value="50" oninput="updateParam('glitch',this.value)">
+      </div>
+      <div class="control-row">
+        <div class="control-label">NOISE SEED <span class="val" id="seedVal">42</span></div>
+        <input type="range" id="seedSlider" min="0" max="999" value="42" oninput="updateParam('seed',this.value)">
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="panel">
+      <div class="panel-title">PRESETS</div>
+      <div class="preset-grid">
+        <button class="preset-btn active" onclick="applyPreset('RAW')">RAW</button>
+        <button class="preset-btn" onclick="applyPreset('WIRE')">WIRE ONLY</button>
+        <button class="preset-btn" onclick="applyPreset('CHAOS')">CHAOS</button>
+        <button class="preset-btn" onclick="applyPreset('SOFT')">SOFT</button>
+        <button class="preset-btn" onclick="applyPreset('SCAN')">SCAN</button>
+        <button class="preset-btn" onclick="applyPreset('DATA')">DATA</button>
+      </div>
+    </div>
+
+    <!-- Export -->
+    <div class="panel">
+      <div class="panel-title">EXPORT</div>
+      <div class="export-input-row">
+        <label>FRAMES</label>
+        <input type="number" id="exportFrames" value="12" min="1" max="300">
+      </div>
+      <div class="export-input-row">
+        <label>START</label>
+        <input type="number" id="exportStart" value="0" min="0">
+        <label>END</label>
+        <input type="number" id="exportEnd" value="100" min="0">
+      </div>
+      <button class="btn-export" id="btnExport" onclick="exportFrames()" disabled>
+        ↓ EXPORT PNG FRAMES
+      </button>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">PROCESSING...</div>
+      </div>
+    </div>
+
+  </div><!-- /sidebar -->
+</div><!-- /main -->
+
+<!-- Hidden video element -->
+<video id="hiddenVideo" style="display:none" crossorigin="anonymous"></video>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const state = {
+  video: null,
+  loaded: false,
+  playing: false,
+  currentTime: 0,
+  duration: 0,
+  effects: {
+    wire: true,
+    coord: true,
+    warp: true,
+    hglitch: true,
+    scatter: false,
+    chroma: false,
+  },
+  params: {
+    warp: 0.5,
+    line: 6,
+    glitch: 0.5,
+    seed: 42,
+  },
+  animId: null,
+  playAnimId: null,
+};
+
+// ============================================================
+// SEEDED PRNG
+// ============================================================
+function seededRand(seed) {
+  let s = seed;
+  return function() {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 4294967296;
+  };
+}
+
+// ============================================================
+// VIDEO SETUP
+// ============================================================
+const video = document.getElementById('hiddenVideo');
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.muted = true;
+  video.playsInline = true;
+  video.load();
+  document.getElementById('statusBar').textContent = 'LOADING — ' + file.name.toUpperCase();
+});
+
+// Use multiple events to ensure we catch when video is ready
+['loadeddata', 'canplay', 'loadedmetadata'].forEach(evt => {
+  video.addEventListener(evt, () => {
+    if (state.loaded) return; // only init once
+    if (!video.videoWidth || !video.videoHeight) return; // dimensions not ready yet
+    state.loaded = true;
+    state.duration = video.duration;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    document.getElementById('uploadPrompt').classList.add('hidden');
+    document.getElementById('totalFrameNum').textContent = Math.round(video.duration * 30);
+    document.getElementById('exportEnd').value = 100;
+    document.getElementById('btnExport').disabled = false;
+    document.getElementById('statusBar').textContent =
+      `LOADED — ${video.videoWidth}×${video.videoHeight} — ${video.duration.toFixed(2)}s`;
+    // Small delay then render first frame
+    setTimeout(() => seekAndRender(0.01), 100);
+  });
+});
+
+// ============================================================
+// RENDER LOOP
+// ============================================================
+function seekAndRender(t) {
+  const target = Math.max(0, Math.min(t, state.duration - 0.001));
+  video.currentTime = target;
+
+  // Fallback: if seeked doesn't fire within 500ms, render anyway
+  const fallback = setTimeout(() => {
+    if (state.loaded) renderFrame();
+  }, 500);
+
+  video.addEventListener('seeked', function onSeeked() {
+    clearTimeout(fallback);
+    video.removeEventListener('seeked', onSeeked);
+    renderFrame();
+  }, { once: true });
+}
+
+function renderFrame() {
+  if (!state.loaded) return;
+  const w = canvas.width;
+  const h = canvas.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  // Draw base video frame (with optional warp)
+  if (state.effects.warp) {
+    drawWarpedFrame(w, h);
+  } else {
+    ctx.drawImage(video, 0, 0, w, h);
+  }
+
+  // Chromatic aberration
+  if (state.effects.chroma) {
+    drawChromatic(w, h);
+  }
+
+  // Horizontal glitch bands
+  if (state.effects.hglitch) {
+    drawHGlitch(w, h);
+  }
+
+  // Pixel scatter
+  if (state.effects.scatter) {
+    drawScatter(w, h);
+  }
+
+  // Wireframe lines
+  if (state.effects.wire) {
+    drawWireframe(w, h);
+  }
+
+  // Update scrubber
+  const pct = (video.currentTime / state.duration) * 100;
+  document.getElementById('scrubber').value = pct;
+  document.getElementById('scrubVal').textContent = pct.toFixed(1);
+  document.getElementById('currentFrameNum').textContent = Math.round(video.currentTime * 30);
+  document.getElementById('timeDisplay').textContent = video.currentTime.toFixed(2) + 's';
+}
+
+// ============================================================
+// WARP
+// ============================================================
+function drawWarpedFrame(w, h) {
+  const intensity = state.params.warp * 40;
+  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 10));
+  const gridX = 12, gridY = 16;
+  const cellW = w / gridX, cellH = h / gridY;
+
+  for (let gy = 0; gy < gridY; gy++) {
+    for (let gx = 0; gx < gridX; gx++) {
+      const sx = gx * cellW, sy = gy * cellH;
+      // distort center-weighted (more distortion near face/center)
+      const cx = gx / gridX - 0.5, cy = gy / gridY - 0.45;
+      const dist = Math.sqrt(cx*cx + cy*cy);
+      const warpFactor = Math.max(0, 1 - dist * 1.8) * intensity;
+      const dx = (rand() - 0.5) * warpFactor;
+      const dy = (rand() - 0.5) * warpFactor;
+
+      ctx.drawImage(video,
+        sx, sy, cellW + 1, cellH + 1,
+        sx + dx, sy + dy, cellW + 1, cellH + 1
+      );
+    }
+  }
+}
+
+// ============================================================
+// HORIZONTAL GLITCH
+// ============================================================
+function drawHGlitch(w, h) {
+  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 7) + 1);
+  const strength = state.params.glitch;
+  const numBands = Math.floor(3 + rand() * 5);
+
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const data = imgData.data;
+
+  for (let b = 0; b < numBands; b++) {
+    if (rand() > 0.6 * strength) continue; // skip some
+    const bandY = Math.floor(rand() * h);
+    const bandH = Math.floor(2 + rand() * 20 * strength);
+    const shift = Math.floor((rand() - 0.5) * 80 * strength);
+
+    for (let y = bandY; y < Math.min(bandY + bandH, h); y++) {
+      for (let x = 0; x < w; x++) {
+        const srcX = ((x - shift) + w) % w;
+        const dst = (y * w + x) * 4;
+        const src = (y * w + srcX) * 4;
+        data[dst]   = data[src];
+        data[dst+1] = data[src+1];
+        data[dst+2] = data[src+2];
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// ============================================================
+// CHROMATIC ABERRATION
+// ============================================================
+function drawChromatic(w, h) {
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const data = Uint8ClampedArray.from(imgData.data);
+  const shift = Math.floor(3 + state.params.glitch * 10);
+
+  for (let i = 0; i < imgData.data.length; i += 4) {
+    const x = (i/4) % w;
+    const y = Math.floor((i/4) / w);
+    const srcR = ((y * w) + Math.min(x + shift, w-1)) * 4;
+    const srcB = ((y * w) + Math.max(x - shift, 0)) * 4;
+    imgData.data[i]   = data[srcR];
+    imgData.data[i+2] = data[srcB + 2];
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// ============================================================
+// PIXEL SCATTER
+// ============================================================
+function drawScatter(w, h) {
+  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 13) + 99);
+  const imgData = ctx.getImageData(0, 0, w, h);
+  const data = imgData.data;
+  const n = Math.floor(200 * state.params.glitch);
+
+  for (let i = 0; i < n; i++) {
+    const x = Math.floor(rand() * w);
+    const y = Math.floor(rand() * h);
+    const bw = Math.floor(4 + rand() * 30);
+    const bh = Math.floor(2 + rand() * 8);
+    const ox = Math.floor((rand() - 0.5) * 60);
+
+    for (let dy = 0; dy < bh; dy++) {
+      for (let dx = 0; dx < bw; dx++) {
+        const sx = Math.max(0, Math.min(x+dx, w-1));
+        const sy = Math.max(0, Math.min(y+dy, h-1));
+        const tx = Math.max(0, Math.min(sx + ox, w-1));
+        const src = (sy*w+sx)*4, dst = (sy*w+tx)*4;
+        data[dst] = data[src]; data[dst+1] = data[src+1]; data[dst+2] = data[src+2];
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+// ============================================================
+// WIREFRAME
+// ============================================================
+function drawWireframe(w, h) {
+  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 5));
+  const n = state.params.line;
+
+  // Generate "landmark" points — distributed across figure area (right half-ish, vertical center)
+  const pts = [];
+  const zones = [
+    [0.5, 0.05, 0.8, 0.35],  // head zone
+    [0.2, 0.35, 0.9, 0.75],  // torso zone
+    [0.3, 0.7, 0.9, 1.0],    // lower zone
+  ];
+
+  zones.forEach(([x0, y0, x1, y1]) => {
+    const count = Math.ceil(n * (y1 - y0) * 2);
+    for (let i = 0; i < count; i++) {
+      pts.push([
+        (x0 + rand() * (x1 - x0)) * w,
+        (y0 + rand() * (y1 - y0)) * h,
+      ]);
+    }
+  });
+
+  // Draw lines (Delaunay-like: connect nearby points)
+  ctx.save();
+  ctx.strokeStyle = '#e8291c';
+  ctx.lineWidth = 0.8;
+  ctx.globalAlpha = 0.85;
+
+  for (let i = 0; i < pts.length; i++) {
+    // find 2-3 nearest
+    const dists = pts.map((p, j) => {
+      if (i === j) return Infinity;
+      return Math.hypot(p[0]-pts[i][0], p[1]-pts[i][1]);
+    });
+    const sorted = dists.map((d,j) => [d,j]).sort((a,b) => a[0]-b[0]);
+    const connections = sorted.slice(0, 2 + Math.floor(rand() * 2));
+
+    connections.forEach(([dist, j]) => {
+      if (dist < w * 0.35) { // only connect if close enough
+        ctx.beginPath();
+        ctx.moveTo(pts[i][0], pts[i][1]);
+        ctx.lineTo(pts[j][0], pts[j][1]);
+        ctx.stroke();
+      }
+    });
+  }
+
+  // Draw dots at landmarks
+  ctx.fillStyle = '#e8291c';
+  ctx.globalAlpha = 1;
+  pts.forEach(([x, y]) => {
+    ctx.beginPath();
+    ctx.arc(x, y, 2, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Labels
+  if (state.effects.coord) {
+    ctx.font = '11px "Share Tech Mono", monospace';
+    ctx.globalAlpha = 0.9;
+
+    pts.forEach(([x, y]) => {
+      const lx = (x / w).toFixed(7).replace(/\.?0+$/, '');
+      const ly = (y / h).toFixed(7).replace(/\.?0+$/, '');
+      const label = rand() > 0.5 ? lx : ly;
+
+      const tx = x + (rand() > 0.5 ? 6 : -80);
+      const ty = y - 4;
+
+      // White label
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, tx, ty);
+    });
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// CONTROLS
+// ============================================================
+function toggleEffect(key) {
+  state.effects[key] = !state.effects[key];
+  const el = document.getElementById('tog' + key.charAt(0).toUpperCase() + key.slice(1));
+  el.classList.toggle('on', state.effects[key]);
+  if (state.loaded) renderFrame();
+}
+
+function updateParam(key, val) {
+  const numVal = parseFloat(val);
+  if (key === 'warp') {
+    state.params.warp = numVal / 100;
+    document.getElementById('warpVal').textContent = state.params.warp.toFixed(2);
+  } else if (key === 'line') {
+    state.params.line = Math.floor(numVal);
+    document.getElementById('lineVal').textContent = state.params.line;
+  } else if (key === 'glitch') {
+    state.params.glitch = numVal / 100;
+    document.getElementById('glitchVal').textContent = state.params.glitch.toFixed(2);
+  } else if (key === 'seed') {
+    state.params.seed = Math.floor(numVal);
+    document.getElementById('seedVal').textContent = state.params.seed;
+  }
+  if (state.loaded) renderFrame();
+}
+
+function scrubVideo(val) {
+  if (!state.loaded) return;
+  const t = (val / 100) * state.duration;
+  video.currentTime = Math.max(0, Math.min(t, state.duration - 0.001));
+  const fallback = setTimeout(() => renderFrame(), 300);
+  video.addEventListener('seeked', function onS() {
+    clearTimeout(fallback);
+    video.removeEventListener('seeked', onS);
+    renderFrame();
+  }, { once: true });
+}
+
+function stepFrame(dir) {
+  if (!state.loaded) return;
+  const frameTime = 1/30;
+  seekAndRender(video.currentTime + dir * frameTime);
+}
+
+let playingInterval = null;
+function togglePlay() {
+  if (!state.loaded) return;
+  state.playing = !state.playing;
+  const btn = document.getElementById('btnPlay');
+
+  if (state.playing) {
+    btn.textContent = '⏸ PAUSE';
+    btn.classList.add('active');
+    video.play();
+    // Keep rendering while playing
+    function loop() {
+      if (!state.playing) return;
+      renderFrame();
+      state.playAnimId = requestAnimationFrame(loop);
+    }
+    loop();
+  } else {
+    btn.textContent = '▶ PLAY';
+    btn.classList.remove('active');
+    video.pause();
+    cancelAnimationFrame(state.playAnimId);
+  }
+}
+
+// ============================================================
+// PRESETS
+// ============================================================
+function applyPreset(name) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const presets = {
+    RAW:      { wire:true,  coord:true,  warp:true,  hglitch:true,  scatter:false, chroma:false, w:0.5, l:6,  g:0.5, s:42  },
+    'WIRE ONLY': { wire:true, coord:true, warp:false, hglitch:false, scatter:false, chroma:false, w:0,   l:8,  g:0,   s:42  },
+    CHAOS:    { wire:true,  coord:true,  warp:true,  hglitch:true,  scatter:true,  chroma:true,  w:0.9, l:12, g:0.9, s:777 },
+    SOFT:     { wire:true,  coord:false, warp:true,  hglitch:false, scatter:false, chroma:false, w:0.3, l:4,  g:0.2, s:100 },
+    SCAN:     { wire:false, coord:false, warp:false, hglitch:true,  scatter:true,  chroma:false, w:0,   l:6,  g:0.7, s:55  },
+    DATA:     { wire:true,  coord:true,  warp:true,  hglitch:true,  scatter:false, chroma:true,  w:0.6, l:10, g:0.6, s:333 },
+  };
+
+  const p = presets[name];
+  if (!p) return;
+
+  Object.keys(state.effects).forEach(k => {
+    state.effects[k] = p[k] ?? false;
+    const el = document.getElementById('tog' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.classList.toggle('on', state.effects[k]);
+  });
+
+  state.params.warp = p.w;
+  state.params.line = p.l;
+  state.params.glitch = p.g;
+  state.params.seed = p.s;
+
+  document.getElementById('warpSlider').value = p.w * 100;
+  document.getElementById('lineSlider').value = p.l;
+  document.getElementById('glitchSlider').value = p.g * 100;
+  document.getElementById('seedSlider').value = p.s;
+  document.getElementById('warpVal').textContent = p.w.toFixed(2);
+  document.getElementById('lineVal').textContent = p.l;
+  document.getElementById('glitchVal').textContent = p.g.toFixed(2);
+  document.getElementById('seedVal').textContent = p.s;
+
+  if (state.loaded) renderFrame();
+}
+
+// ============================================================
+// EXPORT
+// ============================================================
+async function exportFrames() {
+  if (!state.loaded) return;
+
+  const numFrames = parseInt(document.getElementById('exportFrames').value) || 12;
+  const startPct  = parseFloat(document.getElementById('exportStart').value) / 100;
+  const endPct    = parseFloat(document.getElementById('exportEnd').value) / 100;
+
+  const startT = startPct * state.duration;
+  const endT   = Math.min(endPct * state.duration, state.duration);
+  const step   = (endT - startT) / Math.max(numFrames - 1, 1);
+
+  const progressWrap  = document.getElementById('progressWrap');
+  const progressFill  = document.getElementById('progressFill');
+  const progressLabel = document.getElementById('progressLabel');
+  const btnExport     = document.getElementById('btnExport');
+
+  progressWrap.classList.add('show');
+  btnExport.disabled = true;
+
+  // Pause playback during export
+  if (state.playing) togglePlay();
+
+  // Render each frame into an offscreen canvas, download
+  const offCanvas = document.createElement('canvas');
+  offCanvas.width  = canvas.width;
+  offCanvas.height = canvas.height;
+  const offCtx = offCanvas.getContext('2d');
+
+  for (let i = 0; i < numFrames; i++) {
+    const t = startT + i * step;
+    progressLabel.textContent = `EXPORTING FRAME ${i+1} / ${numFrames}`;
+    progressFill.style.width = ((i / numFrames) * 100) + '%';
+
+    // Seek video
+    await seekVideoTo(t);
+
+    // Render to offscreen canvas using same pipeline
+    renderToCanvas(offCtx, offCanvas.width, offCanvas.height, t);
+
+    // Download
+    await downloadCanvas(offCanvas, `GLITCH_${String(i+1).padStart(4,'0')}.png`);
+
+    // Small delay to avoid overwhelming the browser
+    await sleep(60);
+  }
+
+  progressFill.style.width = '100%';
+  progressLabel.textContent = `DONE — ${numFrames} FRAMES EXPORTED`;
+  btnExport.disabled = false;
+
+  setTimeout(() => {
+    progressWrap.classList.remove('show');
+  }, 3000);
+}
+
+function seekVideoTo(t) {
+  return new Promise(resolve => {
+    const handler = () => { video.removeEventListener('seeked', handler); resolve(); };
+    video.addEventListener('seeked', handler);
+    video.currentTime = Math.max(0, Math.min(t, state.duration - 0.001));
+  });
+}
+
+function renderToCanvas(c, w, h, t) {
+  // Save original seed and time-based seed
+  const timeSeed = Math.floor(t * 10);
+
+  c.clearRect(0, 0, w, h);
+
+  if (state.effects.warp) {
+    drawWarpedFrameTo(c, w, h, timeSeed);
+  } else {
+    c.drawImage(video, 0, 0, w, h);
+  }
+
+  if (state.effects.chroma) drawChromaticTo(c, w, h);
+  if (state.effects.hglitch) drawHGlitchTo(c, w, h, timeSeed);
+  if (state.effects.scatter) drawScatterTo(c, w, h, timeSeed);
+  if (state.effects.wire)    drawWireframeTo(c, w, h, timeSeed);
+}
+
+// Versions of draw functions that accept explicit context
+function drawWarpedFrameTo(c, w, h, timeSeed) {
+  const intensity = state.params.warp * 40;
+  const rand = seededRand(state.params.seed + timeSeed);
+  const gridX = 12, gridY = 16;
+  const cellW = w / gridX, cellH = h / gridY;
+  for (let gy = 0; gy < gridY; gy++) {
+    for (let gx = 0; gx < gridX; gx++) {
+      const sx = gx * cellW, sy = gy * cellH;
+      const cx = gx/gridX - 0.5, cy = gy/gridY - 0.45;
+      const dist = Math.sqrt(cx*cx + cy*cy);
+      const wf = Math.max(0, 1 - dist * 1.8) * intensity;
+      const dx = (rand() - 0.5) * wf;
+      const dy = (rand() - 0.5) * wf;
+      c.drawImage(video, sx, sy, cellW+1, cellH+1, sx+dx, sy+dy, cellW+1, cellH+1);
+    }
+  }
+}
+
+function drawHGlitchTo(c, w, h, timeSeed) {
+  const rand = seededRand(state.params.seed + timeSeed + 1);
+  const strength = state.params.glitch;
+  const numBands = Math.floor(3 + rand() * 5);
+  const imgData = c.getImageData(0, 0, w, h);
+  const data = imgData.data;
+  for (let b = 0; b < numBands; b++) {
+    if (rand() > 0.6 * strength) continue;
+    const bandY = Math.floor(rand() * h);
+    const bandH = Math.floor(2 + rand() * 20 * strength);
+    const shift = Math.floor((rand()-0.5) * 80 * strength);
+    for (let y = bandY; y < Math.min(bandY+bandH, h); y++) {
+      for (let x = 0; x < w; x++) {
+        const srcX = ((x-shift)+w)%w;
+        const dst = (y*w+x)*4, src = (y*w+srcX)*4;
+        data[dst]=data[src]; data[dst+1]=data[src+1]; data[dst+2]=data[src+2];
+      }
+    }
+  }
+  c.putImageData(imgData, 0, 0);
+}
+
+function drawChromaticTo(c, w, h) {
+  const imgData = c.getImageData(0, 0, w, h);
+  const data = Uint8ClampedArray.from(imgData.data);
+  const shift = Math.floor(3 + state.params.glitch * 10);
+  for (let i = 0; i < imgData.data.length; i += 4) {
+    const x = (i/4) % w;
+    const y = Math.floor((i/4) / w);
+    const srcR = ((y*w)+Math.min(x+shift,w-1))*4;
+    const srcB = ((y*w)+Math.max(x-shift,0))*4;
+    imgData.data[i]   = data[srcR];
+    imgData.data[i+2] = data[srcB+2];
+  }
+  c.putImageData(imgData, 0, 0);
+}
+
+function drawScatterTo(c, w, h, timeSeed) {
+  const rand = seededRand(state.params.seed + timeSeed + 99);
+  const imgData = c.getImageData(0, 0, w, h);
+  const data = imgData.data;
+  const n = Math.floor(200 * state.params.glitch);
+  for (let i = 0; i < n; i++) {
+    const x=Math.floor(rand()*w), y=Math.floor(rand()*h);
+    const bw=Math.floor(4+rand()*30), bh=Math.floor(2+rand()*8);
+    const ox=Math.floor((rand()-0.5)*60);
+    for (let dy=0; dy<bh; dy++) for (let dx=0; dx<bw; dx++) {
+      const sx=Math.max(0,Math.min(x+dx,w-1)), sy=Math.max(0,Math.min(y+dy,h-1));
+      const tx=Math.max(0,Math.min(sx+ox,w-1));
+      const src=(sy*w+sx)*4, dst=(sy*w+tx)*4;
+      data[dst]=data[src]; data[dst+1]=data[src+1]; data[dst+2]=data[src+2];
+    }
+  }
+  c.putImageData(imgData, 0, 0);
+}
+
+function drawWireframeTo(c, w, h, timeSeed) {
+  const rand = seededRand(state.params.seed + timeSeed * 5);
+  const n = state.params.line;
+  const pts = [];
+  const zones = [[0.5,0.05,0.8,0.35],[0.2,0.35,0.9,0.75],[0.3,0.7,0.9,1.0]];
+  zones.forEach(([x0,y0,x1,y1]) => {
+    const count = Math.ceil(n*(y1-y0)*2);
+    for (let i=0; i<count; i++) pts.push([(x0+rand()*(x1-x0))*w, (y0+rand()*(y1-y0))*h]);
+  });
+  c.save();
+  c.strokeStyle = '#e8291c'; c.lineWidth = 0.8; c.globalAlpha = 0.85;
+  for (let i=0; i<pts.length; i++) {
+    const dists = pts.map((p,j) => i===j ? Infinity : Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]));
+    const sorted = dists.map((d,j)=>[d,j]).sort((a,b)=>a[0]-b[0]);
+    sorted.slice(0, 2+Math.floor(rand()*2)).forEach(([dist,j]) => {
+      if (dist < w*0.35) { c.beginPath(); c.moveTo(pts[i][0],pts[i][1]); c.lineTo(pts[j][0],pts[j][1]); c.stroke(); }
+    });
+  }
+  c.fillStyle='#e8291c'; c.globalAlpha=1;
+  pts.forEach(([x,y]) => { c.beginPath(); c.arc(x,y,2,0,Math.PI*2); c.fill(); });
+  if (state.effects.coord) {
+    c.font='11px "Share Tech Mono",monospace'; c.globalAlpha=0.9;
+    pts.forEach(([x,y]) => {
+      const lx=(x/w).toFixed(7).replace(/\.?0+$/,'');
+      const ly=(y/h).toFixed(7).replace(/\.?0+$/,'');
+      const label = rand()>0.5 ? lx : ly;
+      const tx = x+(rand()>0.5?6:-80), ty = y-4;
+      c.fillStyle='#ffffff'; c.fillText(label,tx,ty);
+    });
+  }
+  c.restore();
+}
+
+function downloadCanvas(cvs, filename) {
+  return new Promise(resolve => {
+    cvs.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      setTimeout(resolve, 100);
+    }, 'image/png');
+  });
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ============================================================
+// DRAG AND DROP
+// ============================================================
+const canvasZone = document.querySelector('.canvas-zone');
+canvasZone.addEventListener('dragover', e => { e.preventDefault(); });
+canvasZone.addEventListener('drop', e => {
+  e.preventDefault();
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('video/')) {
+    const input = document.getElementById('fileInput');
+    // Create DataTransfer to set files
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event('change'));
+  }
+});
+</script>
+</body>
+</html>
