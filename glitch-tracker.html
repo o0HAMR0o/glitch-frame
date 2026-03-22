@@ -5,1225 +5,1053 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GLITCH FRAME</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --red:#e8291c;--bg:#080808;--surface:#0f0f0f;--border:#1e1e1e;
+  --text:#ddd;--dim:#444;--mono:'Share Tech Mono',monospace;--sans:'Rajdhani',sans-serif;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}
+#app{display:flex;width:100vw;height:100vh}
 
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* Stage */
+#stage{flex:1;position:relative;background:#000;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+#glCanvas,#overlay{display:block}
+#overlay{position:absolute;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-50%)}
+#scanlines{position:absolute;inset:0;pointer-events:none;z-index:3;
+  background:repeating-linear-gradient(to bottom,transparent 0,transparent 2px,rgba(0,0,0,.06) 2px,rgba(0,0,0,.06) 4px);}
+#dropZone{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;border:1px dashed #1e1e1e;cursor:pointer;transition:border-color .2s;z-index:5;}
+#dropZone:hover{border-color:#333}#dropZone.drag{border-color:var(--red)}#dropZone.hidden{display:none}
+#dropZone p{font-family:var(--mono);font-size:11px;color:#333;letter-spacing:.2em}
+.dz-icon{width:48px;height:48px;border:1px solid #1e1e1e;display:flex;align-items:center;justify-content:center}
 
-  :root {
-    --red: #e8291c;
-    --teal: #2d8fa0;
-    --bg: #0a0a0a;
-    --surface: #111;
-    --text: #e0e0e0;
-    --mono: 'Share Tech Mono', monospace;
-    --sans: 'Rajdhani', sans-serif;
-  }
+/* Rec indicator */
+#recDot{position:absolute;top:14px;left:14px;z-index:10;display:none;
+  align-items:center;gap:6px;font-family:var(--mono);font-size:10px;color:#e8291c;letter-spacing:.1em}
+#recDot.show{display:flex}
+#recDot .dot{width:8px;height:8px;background:#e8291c;border-radius:50%;animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-  }
+/* Sidebar */
+#sidebar{width:260px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow-y:auto;}
+.panel{padding:13px 15px;border-bottom:1px solid var(--border)}
+.ptitle{font-family:var(--mono);font-size:9px;letter-spacing:.25em;color:var(--dim);
+  text-transform:uppercase;margin-bottom:11px;display:flex;align-items:center;gap:6px;}
+.ptitle::before{content:'';width:5px;height:5px;background:var(--red);flex-shrink:0}
 
-  header {
-    padding: 18px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid #1e1e1e;
-  }
+.btn-upload{width:100%;background:transparent;border:1px solid #222;color:var(--text);
+  font-family:var(--mono);font-size:10px;letter-spacing:.15em;padding:10px;
+  cursor:pointer;transition:border-color .2s,color .2s;text-transform:uppercase;}
+.btn-upload:hover{border-color:var(--red);color:var(--red)}
+#statusText{font-family:var(--mono);font-size:9px;color:var(--dim);margin-top:7px;letter-spacing:.07em;line-height:1.6}
 
-  .logo {
-    font-family: var(--mono);
-    font-size: 13px;
-    letter-spacing: 0.25em;
-    color: var(--red);
-  }
+.ctrl{margin-bottom:10px}
+.clabel{display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;
+  color:var(--dim);margin-bottom:4px;letter-spacing:.07em}
+.clabel .v{color:var(--red)}
+input[type=range]{-webkit-appearance:none;width:100%;height:1px;background:#222;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:var(--red);cursor:pointer}
 
-  .logo span { color: #555; margin: 0 6px; }
+.play-row{display:flex;gap:5px;margin-bottom:10px}
+.bsm{flex:1;padding:7px 3px;background:transparent;border:1px solid #1e1e1e;color:var(--dim);
+  font-family:var(--mono);font-size:9px;letter-spacing:.06em;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.bsm:hover{border-color:#333;color:var(--text)}.bsm.on{border-color:var(--red);color:var(--red)}
 
-  .status-bar {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: #444;
-    letter-spacing: 0.1em;
-  }
+.trow{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;
+  font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.06em}
+.tog{width:26px;height:13px;background:#1a1a1a;border:1px solid #252525;position:relative;cursor:pointer;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--red);border-color:var(--red)}
+.tog::after{content:'';position:absolute;top:2px;left:2px;width:7px;height:7px;background:#444;transition:transform .2s,background .2s}
+.tog.on::after{transform:translateX(13px);background:#fff}
 
-  .main {
-    flex: 1;
-    display: grid;
-    grid-template-columns: 1fr 320px;
-    gap: 0;
-    height: calc(100vh - 57px);
-  }
+/* Wire style grid */
+.style-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:10px}
+.style-btn{padding:0;height:44px;background:#0d0d0d;border:1px solid #1e1e1e;cursor:pointer;
+  transition:border-color .15s;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px}
+.style-btn:hover{border-color:#333}
+.style-btn.on{border-color:var(--red)}
+.style-btn svg{pointer-events:none}
+.style-btn span{font-family:var(--mono);font-size:7px;color:var(--dim);letter-spacing:.05em;pointer-events:none}
+.style-btn.on span{color:var(--red)}
 
-  /* ---- Canvas zone ---- */
-  .canvas-zone {
-    position: relative;
-    background: #060606;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
+/* Color */
+.swatch-grid{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
+.swatch{width:20px;height:20px;border:1px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0}
+.swatch:hover{transform:scale(1.15)}.swatch.active{border-color:#fff!important;transform:scale(1.1)}
+.cust-row{display:flex;align-items:center;gap:7px}
+.cust-row label{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.06em}
+input[type=color]{width:32px;height:20px;background:none;border:1px solid #222;padding:1px;cursor:pointer;outline:none}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none}
+#colorHex{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.05em}
 
-  #mainCanvas {
-    max-width: 100%;
-    max-height: 100%;
-    display: block;
-  }
+/* Presets */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.pbtn{padding:7px 4px;background:transparent;border:1px solid #1a1a1a;color:var(--dim);
+  font-family:var(--mono);font-size:9px;letter-spacing:.05em;cursor:pointer;transition:all .15s;text-transform:uppercase;text-align:left;}
+.pbtn:hover{border-color:#2a2a2a;color:#888}.pbtn.on{border-color:var(--red);color:var(--red)}
 
-  .upload-prompt {
-    position: absolute;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
-    pointer-events: none;
-  }
+/* Export */
+.tab-row{display:flex;gap:4px;margin-bottom:10px}
+.tab{flex:1;padding:8px;background:transparent;border:1px solid #1e1e1e;color:var(--dim);
+  font-family:var(--mono);font-size:9px;letter-spacing:.08em;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.tab:hover{border-color:#333;color:var(--text)}.tab.on{border-color:#4caf50;color:#4caf50}
 
-  .upload-prompt.hidden { display: none; }
+.exp-section{display:none}.exp-section.show{display:block}
+.erow{display:flex;gap:6px;align-items:center;margin-bottom:7px}
+.erow label{font-family:var(--mono);font-size:9px;color:var(--dim);flex-shrink:0;letter-spacing:.06em;min-width:52px}
+input[type=number]{background:#0a0a0a;border:1px solid #1e1e1e;color:var(--text);
+  font-family:var(--mono);font-size:10px;padding:5px 6px;width:66px;outline:none}
+input[type=number]:focus{border-color:var(--red)}
 
-  .upload-icon {
-    width: 60px;
-    height: 60px;
-    border: 1px solid #282828;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+.qsel{display:flex;gap:4px;margin-bottom:9px}
+.qbtn{flex:1;padding:6px 2px;background:transparent;border:1px solid #1e1e1e;color:var(--dim);
+  font-family:var(--mono);font-size:9px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.qbtn:hover{border-color:#333;color:var(--text)}.qbtn.on{border-color:#4caf50;color:#4caf50}
 
-  .upload-icon svg { opacity: 0.25; }
+/* Video quality */
+.vq-row{display:flex;gap:4px;margin-bottom:9px}
+.vqbtn{flex:1;padding:6px 2px;background:transparent;border:1px solid #1e1e1e;color:var(--dim);
+  font-family:var(--mono);font-size:8px;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.vqbtn:hover{border-color:#333;color:var(--text)}.vqbtn.on{border-color:#4caf50;color:#4caf50}
 
-  .upload-label {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: #333;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-  }
+.res-badge{font-family:var(--mono);font-size:9px;color:#2a6b2e;letter-spacing:.06em;
+  margin-bottom:9px;padding:4px 6px;border:1px solid #1a3d1e;background:#0a1f0c;display:none}
+.res-badge.show{display:block}
 
-  .upload-btn-wrap {
-    pointer-events: all;
-  }
+.bexp{width:100%;padding:11px;background:var(--red);border:none;color:#fff;
+  font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+  cursor:pointer;transition:opacity .2s;margin-top:4px;}
+.bexp:hover{opacity:.85}.bexp:disabled{opacity:.3;cursor:not-allowed}
+.bexp.rec{background:#b71c1c;animation:pulse 1s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.7}}
 
-  /* ---- Sidebar ---- */
-  .sidebar {
-    border-left: 1px solid #1a1a1a;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    background: var(--surface);
-  }
+.prog{margin-top:8px;display:none}.prog.show{display:block}
+.pbg{height:1px;background:#1a1a1a;margin-bottom:5px}
+.pfill{height:100%;background:var(--red);width:0%;transition:width .15s}
+.plbl{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.06em}
 
-  .panel {
-    border-bottom: 1px solid #1a1a1a;
-    padding: 20px;
-  }
-
-  .panel-title {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.25em;
-    color: #444;
-    text-transform: uppercase;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .panel-title::before {
-    content: '';
-    display: inline-block;
-    width: 6px;
-    height: 6px;
-    background: var(--red);
-  }
-
-  /* Upload button */
-  .btn-upload {
-    width: 100%;
-    background: transparent;
-    border: 1px solid #2a2a2a;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.15em;
-    padding: 12px;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-    text-transform: uppercase;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .btn-upload:hover {
-    border-color: var(--red);
-    color: var(--red);
-  }
-
-  #fileInput { display: none; }
-
-  /* Slider controls */
-  .control-row {
-    margin-bottom: 14px;
-  }
-
-  .control-label {
-    display: flex;
-    justify-content: space-between;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: #555;
-    margin-bottom: 6px;
-    letter-spacing: 0.1em;
-  }
-
-  .control-label .val {
-    color: var(--red);
-  }
-
-  input[type=range] {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 2px;
-    background: #222;
-    outline: none;
-    cursor: pointer;
-  }
-
-  input[type=range]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 12px;
-    height: 12px;
-    background: var(--red);
-    cursor: pointer;
-    border: none;
-  }
-
-  input[type=range]::-webkit-slider-thumb:hover {
-    background: #fff;
-  }
-
-  /* Toggle row */
-  .toggle-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: #555;
-    letter-spacing: 0.1em;
-  }
-
-  .toggle {
-    width: 32px;
-    height: 16px;
-    background: #1e1e1e;
-    border: 1px solid #2a2a2a;
-    position: relative;
-    cursor: pointer;
-    transition: background 0.2s;
-  }
-
-  .toggle.on { background: var(--red); border-color: var(--red); }
-
-  .toggle::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 10px;
-    height: 10px;
-    background: #555;
-    transition: transform 0.2s, background 0.2s;
-  }
-
-  .toggle.on::after {
-    transform: translateX(16px);
-    background: #fff;
-  }
-
-  /* Frame scrubber */
-  .frame-display {
-    font-family: var(--mono);
-    font-size: 11px;
-    color: #444;
-    text-align: center;
-    margin-top: 8px;
-    letter-spacing: 0.1em;
-  }
-
-  .frame-display span { color: var(--red); }
-
-  /* Playback controls */
-  .playback {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 14px;
-  }
-
-  .btn-sm {
-    flex: 1;
-    padding: 8px;
-    background: transparent;
-    border: 1px solid #222;
-    color: #555;
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.1em;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-transform: uppercase;
-  }
-
-  .btn-sm:hover { border-color: #444; color: var(--text); }
-  .btn-sm.active { border-color: var(--red); color: var(--red); }
-
-  /* Export section */
-  .export-input-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-
-  .export-input-row label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: #555;
-    letter-spacing: 0.1em;
-    flex-shrink: 0;
-  }
-
-  input[type=number] {
-    background: #0a0a0a;
-    border: 1px solid #222;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 6px 8px;
-    width: 70px;
-    outline: none;
-  }
-
-  input[type=number]:focus { border-color: var(--red); }
-
-  .btn-export {
-    width: 100%;
-    padding: 14px;
-    background: var(--red);
-    border: none;
-    color: #fff;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-
-  .btn-export:hover { opacity: 0.85; }
-  .btn-export:disabled { opacity: 0.3; cursor: not-allowed; }
-
-  /* Progress */
-  .progress-wrap {
-    margin-top: 10px;
-    display: none;
-  }
-
-  .progress-wrap.show { display: block; }
-
-  .progress-bar-bg {
-    height: 2px;
-    background: #1e1e1e;
-    margin-bottom: 6px;
-  }
-
-  .progress-bar-fill {
-    height: 100%;
-    background: var(--red);
-    width: 0%;
-    transition: width 0.1s;
-  }
-
-  .progress-label {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: #444;
-    letter-spacing: 0.1em;
-  }
-
-  /* Effect presets */
-  .preset-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-
-  .preset-btn {
-    padding: 8px;
-    background: transparent;
-    border: 1px solid #1e1e1e;
-    color: #444;
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.08em;
-    cursor: pointer;
-    text-transform: uppercase;
-    transition: all 0.15s;
-    text-align: left;
-  }
-
-  .preset-btn:hover { border-color: #333; color: #888; }
-  .preset-btn.active { border-color: var(--red); color: var(--red); }
-
-  /* Frame strip */
-  .strip-wrap {
-    display: flex;
-    gap: 3px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-  }
-
-  .strip-thumb {
-    width: 28px;
-    height: 28px;
-    object-fit: cover;
-    opacity: 0.4;
-    cursor: pointer;
-    border: 1px solid transparent;
-    transition: opacity 0.15s, border-color 0.15s;
-  }
-
-  .strip-thumb:hover { opacity: 0.8; }
-  .strip-thumb.active { opacity: 1; border-color: var(--red); }
-
-  /* Scanline overlay on canvas zone */
-  .scanlines {
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      to bottom,
-      transparent 0px,
-      transparent 2px,
-      rgba(0,0,0,0.08) 2px,
-      rgba(0,0,0,0.08) 4px
-    );
-    pointer-events: none;
-    z-index: 2;
-  }
+.finfo{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.1em;text-align:center;margin-top:7px}
+.finfo span{color:var(--red)}
 </style>
 </head>
 <body>
-
-<header>
-  <div class="logo">GLITCH<span>//</span>FRAME</div>
-  <div class="status-bar" id="statusBar">READY — UPLOAD VIDEO TO BEGIN</div>
-</header>
-
-<div class="main">
-
-  <!-- Canvas Zone -->
-  <div class="canvas-zone">
-    <div class="scanlines"></div>
-    <canvas id="mainCanvas"></canvas>
-    <div class="upload-prompt" id="uploadPrompt">
-      <div class="upload-icon">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1">
+<div id="app">
+  <div id="stage">
+    <canvas id="glCanvas"></canvas>
+    <canvas id="overlay"></canvas>
+    <div id="scanlines"></div>
+    <div id="recDot"><div class="dot"></div>REC</div>
+    <div id="dropZone">
+      <div class="dz-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#333" stroke-width="1.5">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
+          <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
         </svg>
       </div>
-      <div class="upload-label">DRAG & DROP or click UPLOAD</div>
+      <p>DRAG & DROP VIDEO</p>
+      <p style="color:#222;font-size:10px">or click to upload</p>
     </div>
   </div>
 
-  <!-- Sidebar -->
-  <div class="sidebar">
+  <div id="sidebar">
 
-    <!-- Upload -->
+    <!-- INPUT -->
     <div class="panel">
-      <div class="panel-title">INPUT</div>
-      <input type="file" id="fileInput" accept="video/*">
-      <button class="btn-upload" onclick="document.getElementById('fileInput').click()">
-        ▲ UPLOAD VIDEO
-      </button>
-      <div class="frame-display" style="margin-top:10px">
-        FRAME <span id="currentFrameNum">0</span> / <span id="totalFrameNum">0</span>
-        &nbsp;&nbsp; <span id="timeDisplay">0.00s</span>
+      <div class="ptitle">INPUT</div>
+      <input type="file" id="fileInput" accept="video/*" style="display:none">
+      <button class="btn-upload" onclick="document.getElementById('fileInput').click()">▲ UPLOAD VIDEO</button>
+      <div id="statusText">READY</div>
+    </div>
+
+    <!-- PLAYBACK -->
+    <div class="panel">
+      <div class="ptitle">PLAYBACK</div>
+      <div class="play-row">
+        <button class="bsm" onclick="stepFrame(-1)">◀◀</button>
+        <button class="bsm" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
+        <button class="bsm" onclick="stepFrame(1)">▶▶</button>
+      </div>
+      <div class="ctrl">
+        <div class="clabel">SCRUB <span class="v" id="vScrub">0.0%</span></div>
+        <input type="range" id="scrubber" min="0" max="1000" value="0" oninput="onScrub(this.value)">
+      </div>
+      <div class="finfo">F <span id="vFrame">0</span> / <span id="vTotal">0</span> &nbsp; <span id="vTime">0.00s</span></div>
+    </div>
+
+    <!-- EFFECTS -->
+    <div class="panel">
+      <div class="ptitle">EFFECTS</div>
+      <div class="trow"><span>WIREFRAME</span><div class="tog on" id="tWire" onclick="togFx('wire')"></div></div>
+      <div class="trow"><span>COORD LABELS</span><div class="tog on" id="tCoord" onclick="togFx('coord')"></div></div>
+      <div class="trow"><span>MESH WARP</span><div class="tog on" id="tWarp" onclick="togFx('warp')"></div></div>
+      <div class="trow"><span>H-GLITCH</span><div class="tog on" id="tHglitch" onclick="togFx('hglitch')"></div></div>
+      <div class="trow"><span>CHROMATIC</span><div class="tog" id="tChroma" onclick="togFx('chroma')"></div></div>
+      <div style="margin-top:9px">
+        <div class="ctrl"><div class="clabel">WARP <span class="v" id="vWarp">0.50</span></div>
+          <input type="range" id="sWarp" min="0" max="100" value="50" oninput="setP('warp',this.value)"></div>
+        <div class="ctrl"><div class="clabel">GLITCH <span class="v" id="vGlitch">0.50</span></div>
+          <input type="range" id="sGlitch" min="0" max="100" value="50" oninput="setP('glitch',this.value)"></div>
+        <div class="ctrl"><div class="clabel">DENSITY <span class="v" id="vLines">6</span></div>
+          <input type="range" id="sLines" min="2" max="16" value="6" oninput="setP('lines',this.value)"></div>
+        <div class="ctrl"><div class="clabel">SEED <span class="v" id="vSeed">42</span></div>
+          <input type="range" id="sSeed" min="0" max="999" value="42" oninput="setP('seed',this.value)"></div>
       </div>
     </div>
 
-    <!-- Playback -->
+    <!-- WIRE STYLE -->
     <div class="panel">
-      <div class="panel-title">PLAYBACK</div>
-      <div class="playback">
-        <button class="btn-sm" id="btnPrev" onclick="stepFrame(-1)">◀◀</button>
-        <button class="btn-sm" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
-        <button class="btn-sm" id="btnNext" onclick="stepFrame(1)">▶▶</button>
+      <div class="ptitle">WIRE STYLE</div>
+      <div class="style-grid" id="styleGrid">
+        <!-- filled by JS -->
       </div>
-      <div class="control-row">
-        <div class="control-label">SCRUB <span class="val" id="scrubVal">0</span></div>
-        <input type="range" id="scrubber" min="0" max="100" value="0" oninput="scrubVideo(this.value)">
+      <div class="trow"><span>MULTI-COLOR</span><div class="tog" id="tMulti" onclick="togFx('multi')"></div></div>
+      <div class="ctrl" style="margin-top:6px">
+        <div class="clabel">OPACITY <span class="v" id="vOpacity">85%</span></div>
+        <input type="range" id="sOpacity" min="10" max="100" value="85" oninput="setP('opacity',this.value)">
+      </div>
+      <div class="ctrl">
+        <div class="clabel">LINE WIDTH <span class="v" id="vLineW">0.7</span></div>
+        <input type="range" id="sLineW" min="1" max="40" value="7" oninput="setP('lineW',this.value)">
       </div>
     </div>
 
-    <!-- Effects -->
+    <!-- WIRE COLOR -->
     <div class="panel">
-      <div class="panel-title">EFFECTS</div>
-
-      <div class="toggle-row">
-        <span>WIREFRAME LINES</span>
-        <div class="toggle on" id="togWire" onclick="toggleEffect('wire')"></div>
-      </div>
-      <div class="toggle-row">
-        <span>COORD LABELS</span>
-        <div class="toggle on" id="togCoord" onclick="toggleEffect('coord')"></div>
-      </div>
-      <div class="toggle-row">
-        <span>MESH WARP</span>
-        <div class="toggle on" id="togWarp" onclick="toggleEffect('warp')"></div>
-      </div>
-      <div class="toggle-row">
-        <span>HORIZONTAL GLITCH</span>
-        <div class="toggle on" id="togHGlitch" onclick="toggleEffect('hglitch')"></div>
-      </div>
-      <div class="toggle-row">
-        <span>PIXEL SCATTER</span>
-        <div class="toggle" id="togScatter" onclick="toggleEffect('scatter')"></div>
-      </div>
-      <div class="toggle-row">
-        <span>CHROMATIC ABB</span>
-        <div class="toggle" id="togChroma" onclick="toggleEffect('chroma')"></div>
-      </div>
-
-      <div class="control-row" style="margin-top:12px">
-        <div class="control-label">WARP INTENSITY <span class="val" id="warpVal">0.5</span></div>
-        <input type="range" id="warpSlider" min="0" max="100" value="50" oninput="updateParam('warp',this.value)">
-      </div>
-      <div class="control-row">
-        <div class="control-label">LINE DENSITY <span class="val" id="lineVal">6</span></div>
-        <input type="range" id="lineSlider" min="3" max="16" value="6" oninput="updateParam('line',this.value)">
-      </div>
-      <div class="control-row">
-        <div class="control-label">GLITCH STRENGTH <span class="val" id="glitchVal">0.5</span></div>
-        <input type="range" id="glitchSlider" min="0" max="100" value="50" oninput="updateParam('glitch',this.value)">
-      </div>
-      <div class="control-row">
-        <div class="control-label">NOISE SEED <span class="val" id="seedVal">42</span></div>
-        <input type="range" id="seedSlider" min="0" max="999" value="42" oninput="updateParam('seed',this.value)">
+      <div class="ptitle">WIRE COLOR</div>
+      <div class="swatch-grid" id="swatchGrid"></div>
+      <div class="cust-row">
+        <label>CUSTOM</label>
+        <input type="color" id="colorPicker" value="#e8291c" oninput="setCustomColor(this.value)">
+        <span id="colorHex">#E8291C</span>
       </div>
     </div>
 
-    <!-- Presets -->
+    <!-- PRESETS -->
     <div class="panel">
-      <div class="panel-title">PRESETS</div>
-      <div class="preset-grid">
-        <button class="preset-btn active" onclick="applyPreset('RAW')">RAW</button>
-        <button class="preset-btn" onclick="applyPreset('WIRE')">WIRE ONLY</button>
-        <button class="preset-btn" onclick="applyPreset('CHAOS')">CHAOS</button>
-        <button class="preset-btn" onclick="applyPreset('SOFT')">SOFT</button>
-        <button class="preset-btn" onclick="applyPreset('SCAN')">SCAN</button>
-        <button class="preset-btn" onclick="applyPreset('DATA')">DATA</button>
+      <div class="ptitle">PRESETS</div>
+      <div class="pgrid">
+        <button class="pbtn on" onclick="applyPreset('RAW',this)">RAW</button>
+        <button class="pbtn" onclick="applyPreset('WIRE',this)">WIRE</button>
+        <button class="pbtn" onclick="applyPreset('CHAOS',this)">CHAOS</button>
+        <button class="pbtn" onclick="applyPreset('SOFT',this)">SOFT</button>
+        <button class="pbtn" onclick="applyPreset('SCAN',this)">SCAN</button>
+        <button class="pbtn" onclick="applyPreset('DATA',this)">DATA</button>
       </div>
     </div>
 
-    <!-- Export -->
+    <!-- EXPORT -->
     <div class="panel">
-      <div class="panel-title">EXPORT</div>
-      <div class="export-input-row">
-        <label>FRAMES</label>
-        <input type="number" id="exportFrames" value="12" min="1" max="300">
+      <div class="ptitle">EXPORT</div>
+      <div class="tab-row">
+        <button class="tab on" id="tabPng" onclick="switchExportTab('png')">PNG SEQ</button>
+        <button class="tab" id="tabMp4" onclick="switchExportTab('mp4')">MP4 VIDEO</button>
       </div>
-      <div class="export-input-row">
-        <label>START</label>
-        <input type="number" id="exportStart" value="0" min="0">
-        <label>END</label>
-        <input type="number" id="exportEnd" value="100" min="0">
+
+      <!-- PNG section -->
+      <div class="exp-section show" id="secPng">
+        <div class="clabel" style="margin-bottom:5px">RESOLUTION</div>
+        <div class="qsel">
+          <button class="qbtn" onclick="setQuality(0.5,this)">½×</button>
+          <button class="qbtn" onclick="setQuality(1,this)">1×</button>
+          <button class="qbtn on" onclick="setQuality(2,this)">2×</button>
+          <button class="qbtn" onclick="setQuality(4,this)">4×</button>
+        </div>
+        <div class="res-badge show" id="resBadge">—</div>
+        <div class="erow"><label>FRAMES</label><input type="number" id="eFrames" value="12" min="1" max="300"></div>
+        <div class="erow"><label>START %</label><input type="number" id="eStart" value="0" min="0" max="100"></div>
+        <div class="erow"><label>END %</label><input type="number" id="eEnd" value="100" min="0" max="100"></div>
+        <button class="bexp" id="btnPngExport" onclick="doPngExport()" disabled>↓ EXPORT PNG</button>
       </div>
-      <button class="btn-export" id="btnExport" onclick="exportFrames()" disabled>
-        ↓ EXPORT PNG FRAMES
-      </button>
-      <div class="progress-wrap" id="progressWrap">
-        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
-        <div class="progress-label" id="progressLabel">PROCESSING...</div>
+
+      <!-- MP4 section -->
+      <div class="exp-section" id="secMp4">
+        <div class="clabel" style="margin-bottom:5px">VIDEO QUALITY</div>
+        <div class="vq-row">
+          <button class="vqbtn" onclick="setVQ(2000000,this)">2Mbps</button>
+          <button class="vqbtn on" onclick="setVQ(8000000,this)">8Mbps</button>
+          <button class="vqbtn" onclick="setVQ(20000000,this)">20Mbps</button>
+        </div>
+        <div class="clabel" style="margin-bottom:5px">PLAYBACK FPS</div>
+        <div class="vq-row">
+          <button class="vqbtn" onclick="setFPS(24,this)">24</button>
+          <button class="vqbtn on" onclick="setFPS(30,this)">30</button>
+          <button class="vqbtn" onclick="setFPS(60,this)">60</button>
+        </div>
+        <div class="erow"><label>START %</label><input type="number" id="mStart" value="0" min="0" max="100"></div>
+        <div class="erow"><label>END %</label><input type="number" id="mEnd" value="100" min="0" max="100"></div>
+        <div id="mp4Support" style="font-family:var(--mono);font-size:9px;color:#555;margin-bottom:6px;letter-spacing:.06em"></div>
+        <button class="bexp" id="btnMp4Export" onclick="doMp4Export()" disabled>▶ RECORD MP4</button>
+        <button class="bexp" id="btnMp4Stop" onclick="stopMp4()" style="display:none;background:#333">■ STOP & SAVE</button>
+      </div>
+
+      <div class="prog" id="prog">
+        <div class="pbg"><div class="pfill" id="progFill"></div></div>
+        <div class="plbl" id="progLbl"></div>
       </div>
     </div>
 
-  </div><!-- /sidebar -->
-</div><!-- /main -->
+  </div>
+</div>
 
-<!-- Hidden video element -->
-<video id="hiddenVideo" style="display:none" crossorigin="anonymous"></video>
+<video id="vid" style="display:none" muted playsinline crossorigin="anonymous"></video>
 
 <script>
-// ============================================================
+// ═══════════════════════════════════════════════
 // STATE
-// ============================================================
-const state = {
-  video: null,
-  loaded: false,
-  playing: false,
-  currentTime: 0,
-  duration: 0,
-  effects: {
-    wire: true,
-    coord: true,
-    warp: true,
-    hglitch: true,
-    scatter: false,
-    chroma: false,
-  },
-  params: {
-    warp: 0.5,
-    line: 6,
-    glitch: 0.5,
-    seed: 42,
-  },
-  animId: null,
-  playAnimId: null,
+// ═══════════════════════════════════════════════
+const S = {
+  loaded:false, playing:false, duration:0, rafId:null,
+  fx:{ wire:true, coord:true, warp:true, hglitch:true, chroma:false, multi:false },
+  p: { warp:.5, glitch:.5, lines:6, seed:42, opacity:.85, lineW:.7 },
+  wireColor:'#e8291c',
+  wireStyle:'mesh',   // mesh | rect-solid | rect-dash | rect-dot | cross | scan | circle | triangle
+  multiColors:['#e8291c','#00ffcc','#ffffff','#ffdd00','#aa44ff','#ff6b00','#00e5ff'],
+  exportScale:2,
+  videoBitrate:8000000,
+  videoFPS:30,
+  dispW:0, dispH:0,
+  mediaRec:null, recChunks:[],
 };
 
-// ============================================================
-// SEEDED PRNG
-// ============================================================
-function seededRand(seed) {
-  let s = seed;
-  return function() {
-    s = (s * 1664525 + 1013904223) & 0xffffffff;
-    return (s >>> 0) / 4294967296;
-  };
+// ═══════════════════════════════════════════════
+// WIRE STYLES  definition
+// ═══════════════════════════════════════════════
+const WIRE_STYLES = [
+  { id:'mesh',        label:'MESH',     icon: drawIconMesh   },
+  { id:'rect-solid',  label:'RECT',     icon: drawIconRect   },
+  { id:'rect-dash',   label:'DASH',     icon: drawIconDash   },
+  { id:'rect-dot',    label:'DOT',      icon: drawIconDot    },
+  { id:'cross',       label:'CROSS',    icon: drawIconCross  },
+  { id:'scan',        label:'SCAN',     icon: drawIconScan   },
+  { id:'circle',      label:'CIRCLE',   icon: drawIconCircle },
+  { id:'triangle',    label:'TRI',      icon: drawIconTri    },
+  { id:'grid',        label:'GRID',     icon: drawIconGrid   },
+];
+
+function drawIconMesh(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.8;
+  const pts=[[6,10],[14,6],[22,12],[10,18],[18,19]];
+  pts.forEach(([x,y],i)=>{
+    if(i<pts.length-1){ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(pts[i+1][0],pts[i+1][1]);ctx.stroke();}
+  });
+  ctx.beginPath();ctx.moveTo(pts[0][0],pts[0][1]);ctx.lineTo(pts[3][0],pts[3][1]);ctx.stroke();
+  pts.forEach(([x,y])=>{ctx.beginPath();ctx.arc(x,y,1.5,0,Math.PI*2);ctx.fill();});
+}
+function drawIconRect(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.8;ctx.strokeRect(5,5,18,18);
+}
+function drawIconDash(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.8;ctx.setLineDash([3,2]);ctx.strokeRect(5,5,18,18);ctx.setLineDash([]);
+}
+function drawIconDot(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=1;ctx.setLineDash([1,2]);ctx.strokeRect(5,5,18,18);ctx.setLineDash([]);
+}
+function drawIconCross(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.8;
+  ctx.beginPath();ctx.moveTo(4,4);ctx.lineTo(24,24);ctx.moveTo(24,4);ctx.lineTo(4,24);ctx.stroke();
+}
+function drawIconScan(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.8;
+  [6,10,14,18,22].forEach(y=>{ctx.beginPath();ctx.moveTo(4,y);ctx.lineTo(24,y);ctx.stroke();});
+}
+function drawIconCircle(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.8;ctx.beginPath();ctx.arc(14,14,9,0,Math.PI*2);ctx.stroke();
+}
+function drawIconTri(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.8;
+  ctx.beginPath();ctx.moveTo(14,4);ctx.lineTo(24,23);ctx.lineTo(4,23);ctx.closePath();ctx.stroke();
+}
+function drawIconGrid(ctx,w,h){
+  ctx.strokeStyle='#888';ctx.lineWidth=.5;
+  for(let x=5;x<=23;x+=6){ctx.beginPath();ctx.moveTo(x,4);ctx.lineTo(x,24);ctx.stroke();}
+  for(let y=5;y<=23;y+=6){ctx.beginPath();ctx.moveTo(4,y);ctx.lineTo(24,y);ctx.stroke();}
 }
 
-// ============================================================
-// VIDEO SETUP
-// ============================================================
-const video = document.getElementById('hiddenVideo');
-const canvas = document.getElementById('mainCanvas');
-const ctx = canvas.getContext('2d');
+function initStyleGrid(){
+  const grid=document.getElementById('styleGrid');
+  WIRE_STYLES.forEach(({id,label,icon})=>{
+    const btn=document.createElement('button');
+    btn.className='style-btn'+(id===S.wireStyle?' on':'');
+    btn.dataset.style=id;
+    btn.onclick=()=>setWireStyle(id);
+    const ic=document.createElement('canvas');
+    ic.width=28;ic.height=28;
+    const c=ic.getContext('2d');
+    c.fillStyle='#888';
+    icon(c,28,28);
+    const lbl=document.createElement('span');lbl.textContent=label;
+    btn.appendChild(ic);btn.appendChild(lbl);
+    grid.appendChild(btn);
+  });
+}
+function setWireStyle(id){
+  S.wireStyle=id;
+  document.querySelectorAll('.style-btn').forEach(b=>b.classList.toggle('on',b.dataset.style===id));
+  if(S.loaded&&!S.playing)render();
+}
 
-document.getElementById('fileInput').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-  video.src = url;
-  video.muted = true;
-  video.playsInline = true;
-  video.load();
-  document.getElementById('statusBar').textContent = 'LOADING — ' + file.name.toUpperCase();
+// ═══════════════════════════════════════════════
+// COLOR SWATCHES
+// ═══════════════════════════════════════════════
+const SWATCHES=['#e8291c','#ff6b00','#ffdd00','#00e676','#00e5ff',
+  '#2979ff','#aa44ff','#ff4081','#ffffff','#aaaaaa',
+  '#111111','#00ffcc','#ff00ff','#ffe0b2','#1a237e'];
+
+function initSwatches(){
+  const grid=document.getElementById('swatchGrid');
+  SWATCHES.forEach(col=>{
+    const s=document.createElement('div');
+    s.className='swatch'+(col===S.wireColor?' active':'');
+    s.style.background=col;s.title=col;
+    s.style.borderColor=col==='#111111'?'#333':'transparent';
+    s.onclick=()=>pickSwatch(col,s);
+    grid.appendChild(s);
+  });
+}
+function pickSwatch(col,el){
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+  el.classList.add('active');
+  S.wireColor=col;
+  document.getElementById('colorPicker').value=col;
+  document.getElementById('colorHex').textContent=col.toUpperCase();
+  if(S.loaded&&!S.playing)render();
+}
+function setCustomColor(val){
+  S.wireColor=val;
+  document.getElementById('colorHex').textContent=val.toUpperCase();
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
+  if(S.loaded&&!S.playing)render();
+}
+
+// ═══════════════════════════════════════════════
+// WebGL
+// ═══════════════════════════════════════════════
+const vid=document.getElementById('vid');
+const glCanvas=document.getElementById('glCanvas');
+const ov=document.getElementById('overlay');
+const ovCtx=ov.getContext('2d');
+const stage=document.getElementById('stage');
+const dropZone=document.getElementById('dropZone');
+const gl=glCanvas.getContext('webgl',{preserveDrawingBuffer:true,antialias:false});
+
+const VS=`attribute vec2 a;varying vec2 uv;void main(){uv=vec2(a.x*.5+.5,.5-a.y*.5);gl_Position=vec4(a,0.,1.);}`;
+const FS=`
+precision mediump float;varying vec2 uv;uniform sampler2D tex;
+uniform float uWarp,uGlitch,uSeed,uTime;uniform int uFlags;
+float h2(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+bool flag(int b){return mod(floor(float(uFlags)/pow(2.,float(b))),2.)>.5;}
+void main(){
+  vec2 p=uv;
+  if(flag(0)&&uWarp>0.){
+    float cx=p.x-.5,cy=p.y-.45;
+    float str=max(0.,1.-sqrt(cx*cx+cy*cy)*1.8)*uWarp*.04;
+    p+=vec2(h2(vec2(floor(p.x*12.),floor(p.y*16.))+uSeed)-.5,
+            h2(vec2(floor(p.x*12.)+.1,floor(p.y*16.)+.1)+uSeed)-.5)*str;
+  }
+  if(flag(1)&&uGlitch>0.){
+    float band=floor(p.y*40.);
+    if(h2(vec2(band,floor(uTime*7.)+uSeed))<uGlitch*.6)
+      p.x=fract(p.x+(h2(vec2(band+.5,uSeed))-.5)*uGlitch*.08);
+  }
+  p=clamp(p,0.,1.);
+  if(flag(2)){
+    float sh=uGlitch*.008;
+    gl_FragColor=vec4(texture2D(tex,clamp(p+vec2(sh,0.),0.,1.)).r,
+      texture2D(tex,p).g,texture2D(tex,clamp(p-vec2(sh,0.),0.,1.)).b,1.);
+  }else gl_FragColor=texture2D(tex,p);
+}`;
+
+function mkShader(type,src){const s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);return s;}
+const gp=gl.createProgram();
+gl.attachShader(gp,mkShader(gl.VERTEX_SHADER,VS));
+gl.attachShader(gp,mkShader(gl.FRAGMENT_SHADER,FS));
+gl.linkProgram(gp);gl.useProgram(gp);
+const gbuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,gbuf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
+const aLoc=gl.getAttribLocation(gp,'a');
+gl.enableVertexAttribArray(aLoc);gl.vertexAttribPointer(aLoc,2,gl.FLOAT,false,0,0);
+const gltex=gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D,gltex);
+['WRAP_S','WRAP_T'].forEach(p=>gl.texParameteri(gl.TEXTURE_2D,gl[`TEXTURE_${p}`],gl.CLAMP_TO_EDGE));
+['MIN','MAG'].forEach(p=>gl.texParameteri(gl.TEXTURE_2D,gl[`TEXTURE_${p}_FILTER`],gl.LINEAR));
+const uT=gl.getUniformLocation(gp,'tex'),uW=gl.getUniformLocation(gp,'uWarp'),
+  uG=gl.getUniformLocation(gp,'uGlitch'),uSe=gl.getUniformLocation(gp,'uSeed'),
+  uTi=gl.getUniformLocation(gp,'uTime'),uF=gl.getUniformLocation(gp,'uFlags');
+
+// ═══════════════════════════════════════════════
+// PRNG
+// ═══════════════════════════════════════════════
+function rng(seed){
+  let s=seed|0;return()=>{s=(Math.imul(s,1664525)+1013904223)|0;return(s>>>0)/4294967296;};
+}
+
+// ═══════════════════════════════════════════════
+// RESIZE
+// ═══════════════════════════════════════════════
+function resize(){
+  if(!S.loaded)return;
+  const sw=stage.clientWidth,sh=stage.clientHeight;
+  const vr=vid.videoWidth/vid.videoHeight,sr=sw/sh;
+  let w,h;if(vr>sr){w=sw;h=Math.round(sw/vr);}else{h=sh;w=Math.round(sh*vr);}
+  S.dispW=w;S.dispH=h;
+  glCanvas.width=w;glCanvas.height=h;glCanvas.style.width=w+'px';glCanvas.style.height=h+'px';
+  ov.width=w;ov.height=h;ov.style.width=w+'px';ov.style.height=h+'px';
+  gl.viewport(0,0,w,h);updateResBadge();
+}
+new ResizeObserver(resize).observe(stage);
+function updateResBadge(){
+  const b=document.getElementById('resBadge');
+  if(!S.loaded){b.classList.remove('show');return;}
+  const ew=Math.round(vid.videoWidth*S.exportScale),eh=Math.round(vid.videoHeight*S.exportScale);
+  b.textContent=`EXPORT: ${ew} × ${eh} px`;b.classList.add('show');
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function glPass(){
+  gl.bindTexture(gl.TEXTURE_2D,gltex);
+  try{gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,vid);}catch(e){return false;}
+  gl.uniform1i(uT,0);
+  gl.uniform1f(uW,S.fx.warp?S.p.warp:0);gl.uniform1f(uG,S.fx.hglitch?S.p.glitch:0);
+  gl.uniform1f(uSe,S.p.seed);gl.uniform1f(uTi,vid.currentTime);
+  gl.uniform1i(uF,(S.fx.warp?1:0)|(S.fx.hglitch?2:0)|(S.fx.chroma?4:0));
+  gl.drawArrays(gl.TRIANGLE_STRIP,0,4);return true;
+}
+
+function render(){
+  if(!S.loaded)return;
+  if(!glPass())return;
+  const w=ov.width,h=ov.height;
+  ovCtx.clearRect(0,0,w,h);
+  if(S.fx.wire)drawWireOverlay(ovCtx,w,h,vid.currentTime,false);
+  updateUI();
+}
+
+function updateUI(){
+  const t=vid.currentTime,pct=S.duration>0?t/S.duration:0;
+  document.getElementById('scrubber').value=Math.round(pct*1000);
+  document.getElementById('vScrub').textContent=(pct*100).toFixed(1)+'%';
+  document.getElementById('vFrame').textContent=Math.round(t*30);
+  document.getElementById('vTime').textContent=t.toFixed(2)+'s';
+}
+
+// ═══════════════════════════════════════════════
+// WIRE OVERLAY — all styles
+// ═══════════════════════════════════════════════
+function drawWireOverlay(c,w,h,t,isExport){
+  const rand=rng(S.p.seed*1000+Math.floor(t*10));
+  const lw=isExport?S.p.lineW*(w/Math.max(S.dispW,1)):S.p.lineW;
+  const dotR=isExport?Math.max(2,1.8*(w/Math.max(S.dispW,1))):1.8;
+  c.globalAlpha=S.p.opacity;
+
+  switch(S.wireStyle){
+    case 'mesh':        drawMesh(c,w,h,rand,lw,dotR,t); break;
+    case 'rect-solid':  drawRects(c,w,h,rand,lw,'solid'); break;
+    case 'rect-dash':   drawRects(c,w,h,rand,lw,'dash'); break;
+    case 'rect-dot':    drawRects(c,w,h,rand,lw,'dot'); break;
+    case 'cross':       drawCrosses(c,w,h,rand,lw); break;
+    case 'scan':        drawScanLines(c,w,h,rand,lw,t); break;
+    case 'circle':      drawCircles(c,w,h,rand,lw); break;
+    case 'triangle':    drawTriangles(c,w,h,rand,lw); break;
+    case 'grid':        drawGrid(c,w,h,rand,lw); break;
+  }
+
+  if(S.fx.coord) drawCoordLabels(c,w,h,rand,isExport);
+  c.globalAlpha=1;c.setLineDash([]);
+}
+
+function getColor(i){return S.fx.multi?S.multiColors[i%S.multiColors.length]:S.wireColor;}
+
+// --- MESH (original triangulated) ---
+function drawMesh(c,w,h,rand,lw,dotR,t){
+  const pts=[];
+  [[.5,.05,.85,.35],[.2,.35,.9,.75],[.25,.7,.9,1]].forEach(([x0,y0,x1,y1])=>{
+    const cnt=Math.ceil(S.p.lines*(y1-y0)*2.2);
+    for(let i=0;i<cnt;i++)pts.push([(x0+rand()*(x1-x0))*w,(y0+rand()*(y1-y0))*h]);
+  });
+  c.lineWidth=lw;
+  for(let i=0;i<pts.length;i++){
+    const ds=pts.map((p,j)=>i===j?1e9:Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]));
+    ds.map((d,j)=>[d,j]).sort((a,b)=>a[0]-b[0]).slice(0,2+Math.floor(rand()*2)).forEach(([d,j])=>{
+      if(d<w*.35){
+        if(S.fx.multi){const g=c.createLinearGradient(pts[i][0],pts[i][1],pts[j][0],pts[j][1]);
+          g.addColorStop(0,getColor(i));g.addColorStop(1,getColor(j));c.strokeStyle=g;}
+        else c.strokeStyle=S.wireColor;
+        c.beginPath();c.moveTo(pts[i][0],pts[i][1]);c.lineTo(pts[j][0],pts[j][1]);c.stroke();
+      }
+    });
+  }
+  c.globalAlpha=1;
+  pts.forEach(([x,y],i)=>{c.fillStyle=getColor(i);c.beginPath();c.arc(x,y,dotR,0,Math.PI*2);c.fill();});
+  c.globalAlpha=S.p.opacity;
+}
+
+// --- RECT (solid / dash / dot) ---
+function drawRects(c,w,h,rand,lw,mode){
+  const n=S.p.lines;
+  c.lineWidth=lw;
+  if(mode==='dash')c.setLineDash([lw*6,lw*3]);
+  else if(mode==='dot')c.setLineDash([lw,lw*3]);
+  else c.setLineDash([]);
+  for(let i=0;i<n;i++){
+    c.strokeStyle=getColor(i);
+    const rx=(rand()*.5+.1)*w,ry=(rand()*.6+.05)*h;
+    const rw=(rand()*.3+.1)*w,rh=(rand()*.25+.1)*h;
+    c.strokeRect(rx,ry,rw,rh);
+    // corner dots
+    if(mode==='solid'){
+      c.fillStyle=getColor(i);
+      [[rx,ry],[rx+rw,ry],[rx,ry+rh],[rx+rw,ry+rh]].forEach(([cx,cy])=>{
+        c.beginPath();c.arc(cx,cy,lw*1.5,0,Math.PI*2);c.fill();
+      });
+    }
+  }
+  c.setLineDash([]);
+}
+
+// --- CROSS / X marks ---
+function drawCrosses(c,w,h,rand,lw){
+  const n=S.p.lines*2;c.lineWidth=lw;
+  for(let i=0;i<n;i++){
+    c.strokeStyle=getColor(i);
+    const cx=(rand()*.7+.15)*w,cy=(rand()*.8+.05)*h;
+    const sz=(rand()*.04+.02)*w;
+    c.beginPath();c.moveTo(cx-sz,cy);c.lineTo(cx+sz,cy);
+    c.moveTo(cx,cy-sz);c.moveTo(cx,cy-sz);c.lineTo(cx,cy+sz);c.stroke();
+    // diagonal
+    c.globalAlpha=S.p.opacity*.5;
+    c.beginPath();c.moveTo(cx-sz*.6,cy-sz*.6);c.lineTo(cx+sz*.6,cy+sz*.6);
+    c.moveTo(cx+sz*.6,cy-sz*.6);c.lineTo(cx-sz*.6,cy+sz*.6);c.stroke();
+    c.globalAlpha=S.p.opacity;
+  }
+}
+
+// --- SCAN LINES (horizontal, animated offset) ---
+function drawScanLines(c,w,h,rand,lw,t){
+  const spacing=h/Math.max(S.p.lines*2,4);
+  c.lineWidth=lw;
+  for(let i=0;i<S.p.lines*2;i++){
+    c.strokeStyle=getColor(i);
+    const baseY=i*spacing;
+    const glitchY=baseY+(rand()-.5)*spacing*.3;
+    const x0=(rand()*.3)*w,x1=w-(rand()*.3)*w;
+    c.beginPath();c.moveTo(x0,glitchY);c.lineTo(x1,glitchY);c.stroke();
+    // small notch
+    if(rand()>.6){
+      const nx=x0+rand()*(x1-x0);
+      c.beginPath();c.moveTo(nx,glitchY-lw*3);c.lineTo(nx,glitchY+lw*3);c.stroke();
+    }
+  }
+}
+
+// --- CIRCLES ---
+function drawCircles(c,w,h,rand,lw){
+  const n=S.p.lines;c.lineWidth=lw;
+  for(let i=0;i<n;i++){
+    c.strokeStyle=getColor(i);
+    const cx=(rand()*.6+.2)*w,cy=(rand()*.7+.1)*h;
+    const r=(rand()*.08+.03)*w;
+    c.beginPath();c.arc(cx,cy,r,0,Math.PI*2);c.stroke();
+    // inner ring
+    if(rand()>.5){c.globalAlpha=S.p.opacity*.4;c.beginPath();c.arc(cx,cy,r*.5,0,Math.PI*2);c.stroke();c.globalAlpha=S.p.opacity;}
+    c.fillStyle=getColor(i);c.beginPath();c.arc(cx,cy,lw*1.5,0,Math.PI*2);c.fill();
+  }
+}
+
+// --- TRIANGLES ---
+function drawTriangles(c,w,h,rand,lw){
+  const n=S.p.lines;c.lineWidth=lw;
+  for(let i=0;i<n;i++){
+    c.strokeStyle=getColor(i);
+    const cx=(rand()*.6+.2)*w,cy=(rand()*.6+.15)*h;
+    const sz=(rand()*.08+.04)*w;
+    const rot=rand()*Math.PI*2;
+    c.beginPath();
+    for(let v=0;v<3;v++){
+      const a=rot+v*(Math.PI*2/3);
+      v===0?c.moveTo(cx+Math.cos(a)*sz,cy+Math.sin(a)*sz)
+           :c.lineTo(cx+Math.cos(a)*sz,cy+Math.sin(a)*sz);
+    }
+    c.closePath();c.stroke();
+    c.fillStyle=getColor(i);c.beginPath();c.arc(cx,cy,lw*1.5,0,Math.PI*2);c.fill();
+  }
+}
+
+// --- GRID overlay ---
+function drawGrid(c,w,h,rand,lw){
+  const cols=Math.floor(S.p.lines/2)+3,rows=Math.floor(S.p.lines/2)+4;
+  c.lineWidth=lw*.6;
+  const ox=(rand()*.1)*w,oy=(rand()*.1)*h;
+  const cw=(w*.7)/cols,ch=(h*.75)/rows;
+  const startX=w*.15+ox,startY=h*.1+oy;
+  for(let i=0;i<=cols;i++){
+    c.strokeStyle=getColor(i);
+    c.beginPath();c.moveTo(startX+i*cw,startY);c.lineTo(startX+i*cw,startY+rows*ch);c.stroke();
+  }
+  for(let j=0;j<=rows;j++){
+    c.strokeStyle=getColor(j);
+    c.beginPath();c.moveTo(startX,startY+j*ch);c.lineTo(startX+cols*cw,startY+j*ch);c.stroke();
+  }
+}
+
+// --- COORD LABELS ---
+function drawCoordLabels(c,w,h,rand,isExport){
+  const rand2=rng(S.p.seed*1000+Math.floor(vid.currentTime*10)+77);
+  const n=Math.min(S.p.lines+4,18);
+  const fs=isExport?Math.max(12,w*.012):Math.max(9,w*.011);
+  c.font=`${fs}px 'Share Tech Mono',monospace`;
+  for(let i=0;i<n;i++){
+    const x=(rand2()*.75+.1)*w,y=(rand2()*.8+.05)*h;
+    const lx=(x/w).toFixed(7).replace(/0+$/,'');
+    const ly=(y/h).toFixed(7).replace(/0+$/,'');
+    c.fillStyle='#ffffff';c.globalAlpha=.85;
+    c.fillText(rand2()>.5?lx:ly, x+(rand2()>.5?5:-72), y-3);
+  }
+  c.globalAlpha=S.p.opacity;
+}
+
+// ═══════════════════════════════════════════════
+// VIDEO LOAD
+// ═══════════════════════════════════════════════
+document.getElementById('fileInput').addEventListener('change',e=>{
+  const f=e.target.files[0];if(!f)return;loadVid(f);
 });
+function loadVid(file){
+  S.loaded=false;vid.src=URL.createObjectURL(file);vid.muted=true;vid.load();
+  setStatus('LOADING — '+file.name.substring(0,26).toUpperCase());
+}
+['loadeddata','canplay'].forEach(evt=>vid.addEventListener(evt,()=>{
+  if(S.loaded||!vid.videoWidth)return;
+  S.loaded=true;S.duration=vid.duration;
+  document.getElementById('vTotal').textContent=Math.round(vid.duration*30);
+  document.getElementById('btnPngExport').disabled=false;
+  document.getElementById('btnMp4Export').disabled=false;
+  dropZone.classList.add('hidden');
+  resize();
+  setStatus(`${vid.videoWidth}×${vid.videoHeight} — ${vid.duration.toFixed(1)}s`);
+  checkMp4Support();
+  seekTo(.01);
+}));
 
-// Use multiple events to ensure we catch when video is ready
-['loadeddata', 'canplay', 'loadedmetadata'].forEach(evt => {
-  video.addEventListener(evt, () => {
-    if (state.loaded) return; // only init once
-    if (!video.videoWidth || !video.videoHeight) return; // dimensions not ready yet
-    state.loaded = true;
-    state.duration = video.duration;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    document.getElementById('uploadPrompt').classList.add('hidden');
-    document.getElementById('totalFrameNum').textContent = Math.round(video.duration * 30);
-    document.getElementById('exportEnd').value = 100;
-    document.getElementById('btnExport').disabled = false;
-    document.getElementById('statusBar').textContent =
-      `LOADED — ${video.videoWidth}×${video.videoHeight} — ${video.duration.toFixed(2)}s`;
-    // Small delay then render first frame
-    setTimeout(() => seekAndRender(0.01), 100);
-  });
-});
-
-// ============================================================
-// RENDER LOOP
-// ============================================================
-function seekAndRender(t) {
-  const target = Math.max(0, Math.min(t, state.duration - 0.001));
-  video.currentTime = target;
-
-  // Fallback: if seeked doesn't fire within 500ms, render anyway
-  const fallback = setTimeout(() => {
-    if (state.loaded) renderFrame();
-  }, 500);
-
-  video.addEventListener('seeked', function onSeeked() {
-    clearTimeout(fallback);
-    video.removeEventListener('seeked', onSeeked);
-    renderFrame();
-  }, { once: true });
+function seekTo(t){
+  const target=Math.max(0,Math.min(t,S.duration-.001));
+  vid.currentTime=target;
+  const fb=setTimeout(()=>render(),500);
+  vid.addEventListener('seeked',function h(){clearTimeout(fb);vid.removeEventListener('seeked',h);render();},{once:true});
 }
 
-function renderFrame() {
-  if (!state.loaded) return;
-  const w = canvas.width;
-  const h = canvas.height;
-
-  ctx.clearRect(0, 0, w, h);
-
-  // Draw base video frame (with optional warp)
-  if (state.effects.warp) {
-    drawWarpedFrame(w, h);
-  } else {
-    ctx.drawImage(video, 0, 0, w, h);
-  }
-
-  // Chromatic aberration
-  if (state.effects.chroma) {
-    drawChromatic(w, h);
-  }
-
-  // Horizontal glitch bands
-  if (state.effects.hglitch) {
-    drawHGlitch(w, h);
-  }
-
-  // Pixel scatter
-  if (state.effects.scatter) {
-    drawScatter(w, h);
-  }
-
-  // Wireframe lines
-  if (state.effects.wire) {
-    drawWireframe(w, h);
-  }
-
-  // Update scrubber
-  const pct = (video.currentTime / state.duration) * 100;
-  document.getElementById('scrubber').value = pct;
-  document.getElementById('scrubVal').textContent = pct.toFixed(1);
-  document.getElementById('currentFrameNum').textContent = Math.round(video.currentTime * 30);
-  document.getElementById('timeDisplay').textContent = video.currentTime.toFixed(2) + 's';
-}
-
-// ============================================================
-// WARP
-// ============================================================
-function drawWarpedFrame(w, h) {
-  const intensity = state.params.warp * 40;
-  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 10));
-  const gridX = 12, gridY = 16;
-  const cellW = w / gridX, cellH = h / gridY;
-
-  for (let gy = 0; gy < gridY; gy++) {
-    for (let gx = 0; gx < gridX; gx++) {
-      const sx = gx * cellW, sy = gy * cellH;
-      // distort center-weighted (more distortion near face/center)
-      const cx = gx / gridX - 0.5, cy = gy / gridY - 0.45;
-      const dist = Math.sqrt(cx*cx + cy*cy);
-      const warpFactor = Math.max(0, 1 - dist * 1.8) * intensity;
-      const dx = (rand() - 0.5) * warpFactor;
-      const dy = (rand() - 0.5) * warpFactor;
-
-      ctx.drawImage(video,
-        sx, sy, cellW + 1, cellH + 1,
-        sx + dx, sy + dy, cellW + 1, cellH + 1
-      );
-    }
+// ═══════════════════════════════════════════════
+// PLAYBACK
+// ═══════════════════════════════════════════════
+function togglePlay(){
+  if(!S.loaded)return;S.playing=!S.playing;
+  const btn=document.getElementById('btnPlay');
+  if(S.playing){
+    btn.textContent='⏸ PAUSE';btn.classList.add('on');vid.play();
+    function loop(){if(!S.playing)return;render();S.rafId=requestAnimationFrame(loop);}loop();
+  }else{
+    btn.textContent='▶ PLAY';btn.classList.remove('on');vid.pause();cancelAnimationFrame(S.rafId);
   }
 }
+function stepFrame(dir){if(!S.loaded)return;if(S.playing)togglePlay();seekTo(vid.currentTime+dir/30);}
+function onScrub(v){if(!S.loaded)return;seekTo((v/1000)*S.duration);}
 
-// ============================================================
-// HORIZONTAL GLITCH
-// ============================================================
-function drawHGlitch(w, h) {
-  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 7) + 1);
-  const strength = state.params.glitch;
-  const numBands = Math.floor(3 + rand() * 5);
-
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const data = imgData.data;
-
-  for (let b = 0; b < numBands; b++) {
-    if (rand() > 0.6 * strength) continue; // skip some
-    const bandY = Math.floor(rand() * h);
-    const bandH = Math.floor(2 + rand() * 20 * strength);
-    const shift = Math.floor((rand() - 0.5) * 80 * strength);
-
-    for (let y = bandY; y < Math.min(bandY + bandH, h); y++) {
-      for (let x = 0; x < w; x++) {
-        const srcX = ((x - shift) + w) % w;
-        const dst = (y * w + x) * 4;
-        const src = (y * w + srcX) * 4;
-        data[dst]   = data[src];
-        data[dst+1] = data[src+1];
-        data[dst+2] = data[src+2];
-      }
-    }
-  }
-  ctx.putImageData(imgData, 0, 0);
-}
-
-// ============================================================
-// CHROMATIC ABERRATION
-// ============================================================
-function drawChromatic(w, h) {
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const data = Uint8ClampedArray.from(imgData.data);
-  const shift = Math.floor(3 + state.params.glitch * 10);
-
-  for (let i = 0; i < imgData.data.length; i += 4) {
-    const x = (i/4) % w;
-    const y = Math.floor((i/4) / w);
-    const srcR = ((y * w) + Math.min(x + shift, w-1)) * 4;
-    const srcB = ((y * w) + Math.max(x - shift, 0)) * 4;
-    imgData.data[i]   = data[srcR];
-    imgData.data[i+2] = data[srcB + 2];
-  }
-  ctx.putImageData(imgData, 0, 0);
-}
-
-// ============================================================
-// PIXEL SCATTER
-// ============================================================
-function drawScatter(w, h) {
-  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 13) + 99);
-  const imgData = ctx.getImageData(0, 0, w, h);
-  const data = imgData.data;
-  const n = Math.floor(200 * state.params.glitch);
-
-  for (let i = 0; i < n; i++) {
-    const x = Math.floor(rand() * w);
-    const y = Math.floor(rand() * h);
-    const bw = Math.floor(4 + rand() * 30);
-    const bh = Math.floor(2 + rand() * 8);
-    const ox = Math.floor((rand() - 0.5) * 60);
-
-    for (let dy = 0; dy < bh; dy++) {
-      for (let dx = 0; dx < bw; dx++) {
-        const sx = Math.max(0, Math.min(x+dx, w-1));
-        const sy = Math.max(0, Math.min(y+dy, h-1));
-        const tx = Math.max(0, Math.min(sx + ox, w-1));
-        const src = (sy*w+sx)*4, dst = (sy*w+tx)*4;
-        data[dst] = data[src]; data[dst+1] = data[src+1]; data[dst+2] = data[src+2];
-      }
-    }
-  }
-  ctx.putImageData(imgData, 0, 0);
-}
-
-// ============================================================
-// WIREFRAME
-// ============================================================
-function drawWireframe(w, h) {
-  const rand = seededRand(state.params.seed + Math.floor(video.currentTime * 5));
-  const n = state.params.line;
-
-  // Generate "landmark" points — distributed across figure area (right half-ish, vertical center)
-  const pts = [];
-  const zones = [
-    [0.5, 0.05, 0.8, 0.35],  // head zone
-    [0.2, 0.35, 0.9, 0.75],  // torso zone
-    [0.3, 0.7, 0.9, 1.0],    // lower zone
-  ];
-
-  zones.forEach(([x0, y0, x1, y1]) => {
-    const count = Math.ceil(n * (y1 - y0) * 2);
-    for (let i = 0; i < count; i++) {
-      pts.push([
-        (x0 + rand() * (x1 - x0)) * w,
-        (y0 + rand() * (y1 - y0)) * h,
-      ]);
-    }
-  });
-
-  // Draw lines (Delaunay-like: connect nearby points)
-  ctx.save();
-  ctx.strokeStyle = '#e8291c';
-  ctx.lineWidth = 0.8;
-  ctx.globalAlpha = 0.85;
-
-  for (let i = 0; i < pts.length; i++) {
-    // find 2-3 nearest
-    const dists = pts.map((p, j) => {
-      if (i === j) return Infinity;
-      return Math.hypot(p[0]-pts[i][0], p[1]-pts[i][1]);
-    });
-    const sorted = dists.map((d,j) => [d,j]).sort((a,b) => a[0]-b[0]);
-    const connections = sorted.slice(0, 2 + Math.floor(rand() * 2));
-
-    connections.forEach(([dist, j]) => {
-      if (dist < w * 0.35) { // only connect if close enough
-        ctx.beginPath();
-        ctx.moveTo(pts[i][0], pts[i][1]);
-        ctx.lineTo(pts[j][0], pts[j][1]);
-        ctx.stroke();
-      }
-    });
-  }
-
-  // Draw dots at landmarks
-  ctx.fillStyle = '#e8291c';
-  ctx.globalAlpha = 1;
-  pts.forEach(([x, y]) => {
-    ctx.beginPath();
-    ctx.arc(x, y, 2, 0, Math.PI*2);
-    ctx.fill();
-  });
-
-  // Labels
-  if (state.effects.coord) {
-    ctx.font = '11px "Share Tech Mono", monospace';
-    ctx.globalAlpha = 0.9;
-
-    pts.forEach(([x, y]) => {
-      const lx = (x / w).toFixed(7).replace(/\.?0+$/, '');
-      const ly = (y / h).toFixed(7).replace(/\.?0+$/, '');
-      const label = rand() > 0.5 ? lx : ly;
-
-      const tx = x + (rand() > 0.5 ? 6 : -80);
-      const ty = y - 4;
-
-      // White label
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(label, tx, ty);
-    });
-  }
-
-  ctx.restore();
-}
-
-// ============================================================
+// ═══════════════════════════════════════════════
 // CONTROLS
-// ============================================================
-function toggleEffect(key) {
-  state.effects[key] = !state.effects[key];
-  const el = document.getElementById('tog' + key.charAt(0).toUpperCase() + key.slice(1));
-  el.classList.toggle('on', state.effects[key]);
-  if (state.loaded) renderFrame();
+// ═══════════════════════════════════════════════
+function togFx(key){
+  S.fx[key]=!S.fx[key];
+  const el=document.getElementById('t'+key.charAt(0).toUpperCase()+key.slice(1));
+  if(el)el.classList.toggle('on',S.fx[key]);
+  if(S.loaded&&!S.playing)render();
+}
+function setP(key,val){
+  const n=parseFloat(val);
+  if(key==='warp'){S.p.warp=n/100;document.getElementById('vWarp').textContent=S.p.warp.toFixed(2);}
+  if(key==='glitch'){S.p.glitch=n/100;document.getElementById('vGlitch').textContent=S.p.glitch.toFixed(2);}
+  if(key==='lines'){S.p.lines=Math.floor(n);document.getElementById('vLines').textContent=S.p.lines;}
+  if(key==='seed'){S.p.seed=Math.floor(n);document.getElementById('vSeed').textContent=S.p.seed;}
+  if(key==='opacity'){S.p.opacity=n/100;document.getElementById('vOpacity').textContent=Math.round(n)+'%';}
+  if(key==='lineW'){S.p.lineW=n/10;document.getElementById('vLineW').textContent=S.p.lineW.toFixed(1);}
+  if(S.loaded&&!S.playing)render();
 }
 
-function updateParam(key, val) {
-  const numVal = parseFloat(val);
-  if (key === 'warp') {
-    state.params.warp = numVal / 100;
-    document.getElementById('warpVal').textContent = state.params.warp.toFixed(2);
-  } else if (key === 'line') {
-    state.params.line = Math.floor(numVal);
-    document.getElementById('lineVal').textContent = state.params.line;
-  } else if (key === 'glitch') {
-    state.params.glitch = numVal / 100;
-    document.getElementById('glitchVal').textContent = state.params.glitch.toFixed(2);
-  } else if (key === 'seed') {
-    state.params.seed = Math.floor(numVal);
-    document.getElementById('seedVal').textContent = state.params.seed;
-  }
-  if (state.loaded) renderFrame();
+function setQuality(scale,btn){
+  S.exportScale=scale;
+  document.querySelectorAll('.qbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  updateResBadge();
+}
+function setVQ(bps,btn){
+  S.videoBitrate=bps;
+  document.querySelectorAll('.vqbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+}
+function setFPS(fps,btn){
+  S.videoFPS=fps;
+  // find all fps buttons (second .vq-row)
+  const rows=document.querySelectorAll('.vq-row');
+  rows[1].querySelectorAll('.vqbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
 }
 
-function scrubVideo(val) {
-  if (!state.loaded) return;
-  const t = (val / 100) * state.duration;
-  video.currentTime = Math.max(0, Math.min(t, state.duration - 0.001));
-  const fallback = setTimeout(() => renderFrame(), 300);
-  video.addEventListener('seeked', function onS() {
-    clearTimeout(fallback);
-    video.removeEventListener('seeked', onS);
-    renderFrame();
-  }, { once: true });
+function switchExportTab(tab){
+  document.getElementById('tabPng').classList.toggle('on',tab==='png');
+  document.getElementById('tabMp4').classList.toggle('on',tab==='mp4');
+  document.getElementById('secPng').classList.toggle('show',tab==='png');
+  document.getElementById('secMp4').classList.toggle('show',tab==='mp4');
 }
 
-function stepFrame(dir) {
-  if (!state.loaded) return;
-  const frameTime = 1/30;
-  seekAndRender(video.currentTime + dir * frameTime);
-}
-
-let playingInterval = null;
-function togglePlay() {
-  if (!state.loaded) return;
-  state.playing = !state.playing;
-  const btn = document.getElementById('btnPlay');
-
-  if (state.playing) {
-    btn.textContent = '⏸ PAUSE';
-    btn.classList.add('active');
-    video.play();
-    // Keep rendering while playing
-    function loop() {
-      if (!state.playing) return;
-      renderFrame();
-      state.playAnimId = requestAnimationFrame(loop);
-    }
-    loop();
-  } else {
-    btn.textContent = '▶ PLAY';
-    btn.classList.remove('active');
-    video.pause();
-    cancelAnimationFrame(state.playAnimId);
-  }
-}
-
-// ============================================================
+// ═══════════════════════════════════════════════
 // PRESETS
-// ============================================================
-function applyPreset(name) {
-  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
-  event.target.classList.add('active');
-
-  const presets = {
-    RAW:      { wire:true,  coord:true,  warp:true,  hglitch:true,  scatter:false, chroma:false, w:0.5, l:6,  g:0.5, s:42  },
-    'WIRE ONLY': { wire:true, coord:true, warp:false, hglitch:false, scatter:false, chroma:false, w:0,   l:8,  g:0,   s:42  },
-    CHAOS:    { wire:true,  coord:true,  warp:true,  hglitch:true,  scatter:true,  chroma:true,  w:0.9, l:12, g:0.9, s:777 },
-    SOFT:     { wire:true,  coord:false, warp:true,  hglitch:false, scatter:false, chroma:false, w:0.3, l:4,  g:0.2, s:100 },
-    SCAN:     { wire:false, coord:false, warp:false, hglitch:true,  scatter:true,  chroma:false, w:0,   l:6,  g:0.7, s:55  },
-    DATA:     { wire:true,  coord:true,  warp:true,  hglitch:true,  scatter:false, chroma:true,  w:0.6, l:10, g:0.6, s:333 },
-  };
-
-  const p = presets[name];
-  if (!p) return;
-
-  Object.keys(state.effects).forEach(k => {
-    state.effects[k] = p[k] ?? false;
-    const el = document.getElementById('tog' + k.charAt(0).toUpperCase() + k.slice(1));
-    if (el) el.classList.toggle('on', state.effects[k]);
+// ═══════════════════════════════════════════════
+const PRESETS={
+  RAW: {wire:true,coord:true,warp:true,hglitch:true,chroma:false,multi:false,style:'mesh',w:50,g:50,l:6,s:42,col:'#e8291c'},
+  WIRE:{wire:true,coord:true,warp:false,hglitch:false,chroma:false,multi:false,style:'rect-solid',w:0,g:0,l:8,s:42,col:'#ffffff'},
+  CHAOS:{wire:true,coord:true,warp:true,hglitch:true,chroma:true,multi:true,style:'mesh',w:90,g:90,l:12,s:777,col:'#e8291c'},
+  SOFT:{wire:true,coord:false,warp:true,hglitch:false,chroma:false,multi:false,style:'circle',w:30,g:20,l:4,s:100,col:'#00e5ff'},
+  SCAN:{wire:true,coord:false,warp:false,hglitch:true,chroma:false,multi:false,style:'scan',w:0,g:70,l:6,s:55,col:'#00e676'},
+  DATA:{wire:true,coord:true,warp:true,hglitch:true,chroma:true,multi:true,style:'grid',w:60,g:60,l:10,s:333,col:'#aa44ff'},
+};
+function applyPreset(name,btn){
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
+  const p=PRESETS[name];if(!p)return;
+  ['wire','coord','warp','hglitch','chroma','multi'].forEach(k=>{
+    S.fx[k]=p[k];
+    const el=document.getElementById('t'+k.charAt(0).toUpperCase()+k.slice(1));
+    if(el)el.classList.toggle('on',p[k]);
   });
-
-  state.params.warp = p.w;
-  state.params.line = p.l;
-  state.params.glitch = p.g;
-  state.params.seed = p.s;
-
-  document.getElementById('warpSlider').value = p.w * 100;
-  document.getElementById('lineSlider').value = p.l;
-  document.getElementById('glitchSlider').value = p.g * 100;
-  document.getElementById('seedSlider').value = p.s;
-  document.getElementById('warpVal').textContent = p.w.toFixed(2);
-  document.getElementById('lineVal').textContent = p.l;
-  document.getElementById('glitchVal').textContent = p.g.toFixed(2);
-  document.getElementById('seedVal').textContent = p.s;
-
-  if (state.loaded) renderFrame();
+  setWireStyle(p.style);
+  S.p.warp=p.w/100;S.p.glitch=p.g/100;S.p.lines=p.l;S.p.seed=p.s;S.wireColor=p.col;
+  document.getElementById('sWarp').value=p.w;document.getElementById('vWarp').textContent=S.p.warp.toFixed(2);
+  document.getElementById('sGlitch').value=p.g;document.getElementById('vGlitch').textContent=S.p.glitch.toFixed(2);
+  document.getElementById('sLines').value=p.l;document.getElementById('vLines').textContent=p.l;
+  document.getElementById('sSeed').value=p.s;document.getElementById('vSeed').textContent=p.s;
+  document.getElementById('colorPicker').value=p.col;
+  document.getElementById('colorHex').textContent=p.col.toUpperCase();
+  document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active',s.title===p.col));
+  if(S.loaded&&!S.playing)render();
 }
 
-// ============================================================
-// EXPORT
-// ============================================================
-async function exportFrames() {
-  if (!state.loaded) return;
+// ═══════════════════════════════════════════════
+// PNG EXPORT
+// ═══════════════════════════════════════════════
+async function doPngExport(){
+  if(!S.loaded)return;if(S.playing)togglePlay();
+  const n=parseInt(document.getElementById('eFrames').value)||12;
+  const startT=(parseFloat(document.getElementById('eStart').value)/100)*S.duration;
+  const endT=Math.min((parseFloat(document.getElementById('eEnd').value)/100)*S.duration,S.duration);
+  const step=(endT-startT)/Math.max(n-1,1);
+  const ew=Math.round(vid.videoWidth*S.exportScale),eh=Math.round(vid.videoHeight*S.exportScale);
 
-  const numFrames = parseInt(document.getElementById('exportFrames').value) || 12;
-  const startPct  = parseFloat(document.getElementById('exportStart').value) / 100;
-  const endPct    = parseFloat(document.getElementById('exportEnd').value) / 100;
+  showProg(true);setBtnDisabled('btnPngExport',true);
 
-  const startT = startPct * state.duration;
-  const endT   = Math.min(endPct * state.duration, state.duration);
-  const step   = (endT - startT) / Math.max(numFrames - 1, 1);
+  // Offscreen GL for HQ
+  const ogl=makeOffscreenGL(ew,eh);
 
-  const progressWrap  = document.getElementById('progressWrap');
-  const progressFill  = document.getElementById('progressFill');
-  const progressLabel = document.getElementById('progressLabel');
-  const btnExport     = document.getElementById('btnExport');
+  const ec=document.createElement('canvas');ec.width=ew;ec.height=eh;
+  const ectx=ec.getContext('2d');
 
-  progressWrap.classList.add('show');
-  btnExport.disabled = true;
-
-  // Pause playback during export
-  if (state.playing) togglePlay();
-
-  // Render each frame into an offscreen canvas, download
-  const offCanvas = document.createElement('canvas');
-  offCanvas.width  = canvas.width;
-  offCanvas.height = canvas.height;
-  const offCtx = offCanvas.getContext('2d');
-
-  for (let i = 0; i < numFrames; i++) {
-    const t = startT + i * step;
-    progressLabel.textContent = `EXPORTING FRAME ${i+1} / ${numFrames}`;
-    progressFill.style.width = ((i / numFrames) * 100) + '%';
-
-    // Seek video
-    await seekVideoTo(t);
-
-    // Render to offscreen canvas using same pipeline
-    renderToCanvas(offCtx, offCanvas.width, offCanvas.height, t);
-
-    // Download
-    await downloadCanvas(offCanvas, `GLITCH_${String(i+1).padStart(4,'0')}.png`);
-
-    // Small delay to avoid overwhelming the browser
-    await sleep(60);
+  for(let i=0;i<n;i++){
+    setProg(i/n,`FRAME ${i+1}/${n} — ${ew}×${eh}`);
+    await seekVid(startT+i*step);
+    renderOffscreen(ogl,ew,eh);
+    ectx.clearRect(0,0,ew,eh);
+    ectx.drawImage(ogl.canvas,0,0,ew,eh);
+    if(S.fx.wire)drawWireOverlay(ectx,ew,eh,vid.currentTime,true);
+    await dlCanvas(ec,`GLITCH_${String(i+1).padStart(4,'0')}.png`);
+    await sleep(80);
   }
-
-  progressFill.style.width = '100%';
-  progressLabel.textContent = `DONE — ${numFrames} FRAMES EXPORTED`;
-  btnExport.disabled = false;
-
-  setTimeout(() => {
-    progressWrap.classList.remove('show');
-  }, 3000);
+  setProg(1,`✓ ${n} FRAMES SAVED`);
+  setBtnDisabled('btnPngExport',false);
+  setTimeout(()=>showProg(false),3500);
 }
 
-function seekVideoTo(t) {
-  return new Promise(resolve => {
-    const handler = () => { video.removeEventListener('seeked', handler); resolve(); };
-    video.addEventListener('seeked', handler);
-    video.currentTime = Math.max(0, Math.min(t, state.duration - 0.001));
-  });
-}
-
-function renderToCanvas(c, w, h, t) {
-  // Save original seed and time-based seed
-  const timeSeed = Math.floor(t * 10);
-
-  c.clearRect(0, 0, w, h);
-
-  if (state.effects.warp) {
-    drawWarpedFrameTo(c, w, h, timeSeed);
-  } else {
-    c.drawImage(video, 0, 0, w, h);
+// ═══════════════════════════════════════════════
+// MP4 EXPORT — MediaRecorder
+// ═══════════════════════════════════════════════
+function checkMp4Support(){
+  const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const supported=types.find(t=>MediaRecorder.isTypeSupported(t));
+  const el=document.getElementById('mp4Support');
+  if(supported){
+    el.textContent=`CODEC: ${supported}`;el.style.color='#2a6b2e';
+  }else{
+    el.textContent='⚠ MediaRecorder not supported in this browser';el.style.color='#b71c1c';
+    document.getElementById('btnMp4Export').disabled=true;
   }
-
-  if (state.effects.chroma) drawChromaticTo(c, w, h);
-  if (state.effects.hglitch) drawHGlitchTo(c, w, h, timeSeed);
-  if (state.effects.scatter) drawScatterTo(c, w, h, timeSeed);
-  if (state.effects.wire)    drawWireframeTo(c, w, h, timeSeed);
+}
+function getSupportedMimeType(){
+  const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  return types.find(t=>MediaRecorder.isTypeSupported(t))||'video/webm';
 }
 
-// Versions of draw functions that accept explicit context
-function drawWarpedFrameTo(c, w, h, timeSeed) {
-  const intensity = state.params.warp * 40;
-  const rand = seededRand(state.params.seed + timeSeed);
-  const gridX = 12, gridY = 16;
-  const cellW = w / gridX, cellH = h / gridY;
-  for (let gy = 0; gy < gridY; gy++) {
-    for (let gx = 0; gx < gridX; gx++) {
-      const sx = gx * cellW, sy = gy * cellH;
-      const cx = gx/gridX - 0.5, cy = gy/gridY - 0.45;
-      const dist = Math.sqrt(cx*cx + cy*cy);
-      const wf = Math.max(0, 1 - dist * 1.8) * intensity;
-      const dx = (rand() - 0.5) * wf;
-      const dy = (rand() - 0.5) * wf;
-      c.drawImage(video, sx, sy, cellW+1, cellH+1, sx+dx, sy+dy, cellW+1, cellH+1);
+// Composite canvas for recording
+let recCanvas=null,recCtx=null;
+
+async function doMp4Export(){
+  if(!S.loaded)return;
+  if(S.playing)togglePlay();
+
+  const startT=(parseFloat(document.getElementById('mStart').value)/100)*S.duration;
+  const endT=Math.min((parseFloat(document.getElementById('mEnd').value)/100)*S.duration,S.duration);
+
+  // Create composite canvas at display size (for real-time rendering)
+  recCanvas=document.createElement('canvas');
+  recCanvas.width=S.dispW;recCanvas.height=S.dispH;
+  recCtx=recCanvas.getContext('2d');
+
+  const mimeType=getSupportedMimeType();
+  const ext=mimeType.startsWith('video/mp4')?'mp4':'webm';
+  S.recChunks=[];
+
+  const stream=recCanvas.captureStream(S.videoFPS);
+  S.mediaRec=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:S.videoBitrate});
+  S.mediaRec.ondataavailable=e=>{if(e.data.size>0)S.recChunks.push(e.data);};
+  S.mediaRec.onstop=()=>saveRecording(ext);
+  S.mediaRec.start(100);
+
+  document.getElementById('btnMp4Export').style.display='none';
+  document.getElementById('btnMp4Stop').style.display='block';
+  document.getElementById('recDot').classList.add('show');
+  showProg(true);
+
+  // Seek to start
+  await seekVid(startT);
+
+  // Play and render composite frames
+  vid.currentTime=startT;
+  vid.play();
+  S.playing=true;
+  document.getElementById('btnPlay').textContent='⏸ PAUSE';
+  document.getElementById('btnPlay').classList.add('on');
+
+  let lastT=-1;
+  function recLoop(){
+    if(!S.mediaRec||S.mediaRec.state!=='recording'){stopMp4();return;}
+
+    const t=vid.currentTime;
+    if(t>=endT){stopMp4();return;}
+
+    const pct=(t-startT)/(endT-startT);
+    setProg(pct,`REC ${t.toFixed(2)}s / ${endT.toFixed(2)}s — ${(pct*100).toFixed(0)}%`);
+
+    if(t!==lastT){
+      lastT=t;
+      // Render WebGL to main canvas, then composite to recCanvas
+      glPass();
+      recCtx.clearRect(0,0,recCanvas.width,recCanvas.height);
+      recCtx.drawImage(glCanvas,0,0,recCanvas.width,recCanvas.height);
+      if(S.fx.wire)drawWireOverlay(recCtx,recCanvas.width,recCanvas.height,t,false);
     }
+    updateUI();
+    S.rafId=requestAnimationFrame(recLoop);
   }
+  recLoop();
 }
 
-function drawHGlitchTo(c, w, h, timeSeed) {
-  const rand = seededRand(state.params.seed + timeSeed + 1);
-  const strength = state.params.glitch;
-  const numBands = Math.floor(3 + rand() * 5);
-  const imgData = c.getImageData(0, 0, w, h);
-  const data = imgData.data;
-  for (let b = 0; b < numBands; b++) {
-    if (rand() > 0.6 * strength) continue;
-    const bandY = Math.floor(rand() * h);
-    const bandH = Math.floor(2 + rand() * 20 * strength);
-    const shift = Math.floor((rand()-0.5) * 80 * strength);
-    for (let y = bandY; y < Math.min(bandY+bandH, h); y++) {
-      for (let x = 0; x < w; x++) {
-        const srcX = ((x-shift)+w)%w;
-        const dst = (y*w+x)*4, src = (y*w+srcX)*4;
-        data[dst]=data[src]; data[dst+1]=data[src+1]; data[dst+2]=data[src+2];
-      }
-    }
-  }
-  c.putImageData(imgData, 0, 0);
+function stopMp4(){
+  cancelAnimationFrame(S.rafId);
+  if(S.mediaRec&&S.mediaRec.state!=='inactive')S.mediaRec.stop();
+  vid.pause();S.playing=false;
+  document.getElementById('btnPlay').textContent='▶ PLAY';
+  document.getElementById('btnPlay').classList.remove('on');
+  document.getElementById('btnMp4Export').style.display='block';
+  document.getElementById('btnMp4Stop').style.display='none';
+  document.getElementById('recDot').classList.remove('show');
 }
 
-function drawChromaticTo(c, w, h) {
-  const imgData = c.getImageData(0, 0, w, h);
-  const data = Uint8ClampedArray.from(imgData.data);
-  const shift = Math.floor(3 + state.params.glitch * 10);
-  for (let i = 0; i < imgData.data.length; i += 4) {
-    const x = (i/4) % w;
-    const y = Math.floor((i/4) / w);
-    const srcR = ((y*w)+Math.min(x+shift,w-1))*4;
-    const srcB = ((y*w)+Math.max(x-shift,0))*4;
-    imgData.data[i]   = data[srcR];
-    imgData.data[i+2] = data[srcB+2];
-  }
-  c.putImageData(imgData, 0, 0);
+function saveRecording(ext){
+  const blob=new Blob(S.recChunks,{type:S.mediaRec.mimeType});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`GLITCH_OUTPUT.${ext}`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  setProg(1,`✓ SAVED AS GLITCH_OUTPUT.${ext.toUpperCase()}`);
+  setBtnDisabled('btnMp4Export',false);
+  setTimeout(()=>showProg(false),4000);
 }
 
-function drawScatterTo(c, w, h, timeSeed) {
-  const rand = seededRand(state.params.seed + timeSeed + 99);
-  const imgData = c.getImageData(0, 0, w, h);
-  const data = imgData.data;
-  const n = Math.floor(200 * state.params.glitch);
-  for (let i = 0; i < n; i++) {
-    const x=Math.floor(rand()*w), y=Math.floor(rand()*h);
-    const bw=Math.floor(4+rand()*30), bh=Math.floor(2+rand()*8);
-    const ox=Math.floor((rand()-0.5)*60);
-    for (let dy=0; dy<bh; dy++) for (let dx=0; dx<bw; dx++) {
-      const sx=Math.max(0,Math.min(x+dx,w-1)), sy=Math.max(0,Math.min(y+dy,h-1));
-      const tx=Math.max(0,Math.min(sx+ox,w-1));
-      const src=(sy*w+sx)*4, dst=(sy*w+tx)*4;
-      data[dst]=data[src]; data[dst+1]=data[src+1]; data[dst+2]=data[src+2];
-    }
-  }
-  c.putImageData(imgData, 0, 0);
+// ═══════════════════════════════════════════════
+// OFFSCREEN GL helper
+// ═══════════════════════════════════════════════
+function makeOffscreenGL(w,h){
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const ogl=c.getContext('webgl',{preserveDrawingBuffer:true,antialias:true});
+  const ogp=ogl.createProgram();
+  function ms(type,src){const s=ogl.createShader(type);ogl.shaderSource(s,src);ogl.compileShader(s);return s;}
+  ogl.attachShader(ogp,ms(ogl.VERTEX_SHADER,VS));ogl.attachShader(ogp,ms(ogl.FRAGMENT_SHADER,FS));
+  ogl.linkProgram(ogp);ogl.useProgram(ogp);
+  const ob=ogl.createBuffer();ogl.bindBuffer(ogl.ARRAY_BUFFER,ob);
+  ogl.bufferData(ogl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),ogl.STATIC_DRAW);
+  const al=ogl.getAttribLocation(ogp,'a');ogl.enableVertexAttribArray(al);ogl.vertexAttribPointer(al,2,ogl.FLOAT,false,0,0);
+  const ot=ogl.createTexture();ogl.bindTexture(ogl.TEXTURE_2D,ot);
+  ['WRAP_S','WRAP_T'].forEach(p=>ogl.texParameteri(ogl.TEXTURE_2D,ogl[`TEXTURE_${p}`],ogl.CLAMP_TO_EDGE));
+  ['MIN','MAG'].forEach(p=>ogl.texParameteri(ogl.TEXTURE_2D,ogl[`TEXTURE_${p}_FILTER`],ogl.LINEAR));
+  ogl.viewport(0,0,w,h);
+  return{gl:ogl,prog:ogp,tex:ot,canvas:c,
+    uT:ogl.getUniformLocation(ogp,'tex'),uW:ogl.getUniformLocation(ogp,'uWarp'),
+    uG:ogl.getUniformLocation(ogp,'uGlitch'),uSe:ogl.getUniformLocation(ogp,'uSeed'),
+    uTi:ogl.getUniformLocation(ogp,'uTime'),uF:ogl.getUniformLocation(ogp,'uFlags')};
 }
 
-function drawWireframeTo(c, w, h, timeSeed) {
-  const rand = seededRand(state.params.seed + timeSeed * 5);
-  const n = state.params.line;
-  const pts = [];
-  const zones = [[0.5,0.05,0.8,0.35],[0.2,0.35,0.9,0.75],[0.3,0.7,0.9,1.0]];
-  zones.forEach(([x0,y0,x1,y1]) => {
-    const count = Math.ceil(n*(y1-y0)*2);
-    for (let i=0; i<count; i++) pts.push([(x0+rand()*(x1-x0))*w, (y0+rand()*(y1-y0))*h]);
-  });
-  c.save();
-  c.strokeStyle = '#e8291c'; c.lineWidth = 0.8; c.globalAlpha = 0.85;
-  for (let i=0; i<pts.length; i++) {
-    const dists = pts.map((p,j) => i===j ? Infinity : Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]));
-    const sorted = dists.map((d,j)=>[d,j]).sort((a,b)=>a[0]-b[0]);
-    sorted.slice(0, 2+Math.floor(rand()*2)).forEach(([dist,j]) => {
-      if (dist < w*0.35) { c.beginPath(); c.moveTo(pts[i][0],pts[i][1]); c.lineTo(pts[j][0],pts[j][1]); c.stroke(); }
-    });
-  }
-  c.fillStyle='#e8291c'; c.globalAlpha=1;
-  pts.forEach(([x,y]) => { c.beginPath(); c.arc(x,y,2,0,Math.PI*2); c.fill(); });
-  if (state.effects.coord) {
-    c.font='11px "Share Tech Mono",monospace'; c.globalAlpha=0.9;
-    pts.forEach(([x,y]) => {
-      const lx=(x/w).toFixed(7).replace(/\.?0+$/,'');
-      const ly=(y/h).toFixed(7).replace(/\.?0+$/,'');
-      const label = rand()>0.5 ? lx : ly;
-      const tx = x+(rand()>0.5?6:-80), ty = y-4;
-      c.fillStyle='#ffffff'; c.fillText(label,tx,ty);
-    });
-  }
-  c.restore();
+function renderOffscreen(o,w,h){
+  const{gl:og}=o;
+  og.bindTexture(og.TEXTURE_2D,o.tex);
+  try{og.texImage2D(og.TEXTURE_2D,0,og.RGBA,og.RGBA,og.UNSIGNED_BYTE,vid);}catch(e){return;}
+  og.uniform1i(o.uT,0);og.uniform1f(o.uW,S.fx.warp?S.p.warp:0);og.uniform1f(o.uG,S.fx.hglitch?S.p.glitch:0);
+  og.uniform1f(o.uSe,S.p.seed);og.uniform1f(o.uTi,vid.currentTime);
+  og.uniform1i(o.uF,(S.fx.warp?1:0)|(S.fx.hglitch?2:0)|(S.fx.chroma?4:0));
+  og.drawArrays(og.TRIANGLE_STRIP,0,4);
 }
 
-function downloadCanvas(cvs, filename) {
-  return new Promise(resolve => {
-    cvs.toBlob(blob => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-      setTimeout(resolve, 100);
-    }, 'image/png');
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function seekVid(t){
+  return new Promise(res=>{
+    const fb=setTimeout(()=>{render();res();},800);
+    const h=()=>{clearTimeout(fb);vid.removeEventListener('seeked',h);render();res();};
+    vid.addEventListener('seeked',h);
+    vid.currentTime=Math.max(0,Math.min(t,S.duration-.001));
   });
 }
+function dlCanvas(c,name){
+  return new Promise(res=>{
+    c.toBlob(blob=>{
+      const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+      setTimeout(res,60);
+    },'image/png');
+  });
+}
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+function setStatus(t){document.getElementById('statusText').textContent=t;}
+function showProg(v){document.getElementById('prog').classList.toggle('show',v);}
+function setProg(pct,lbl){
+  document.getElementById('progFill').style.width=(pct*100)+'%';
+  document.getElementById('progLbl').textContent=lbl;
+}
+function setBtnDisabled(id,v){document.getElementById(id).disabled=v;}
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-
-// ============================================================
-// DRAG AND DROP
-// ============================================================
-const canvasZone = document.querySelector('.canvas-zone');
-canvasZone.addEventListener('dragover', e => { e.preventDefault(); });
-canvasZone.addEventListener('drop', e => {
-  e.preventDefault();
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('video/')) {
-    const input = document.getElementById('fileInput');
-    // Create DataTransfer to set files
-    const dt = new DataTransfer();
-    dt.items.add(file);
-    input.files = dt.files;
-    input.dispatchEvent(new Event('change'));
-  }
+// ═══════════════════════════════════════════════
+// DRAG & DROP
+// ═══════════════════════════════════════════════
+dropZone.addEventListener('click',()=>document.getElementById('fileInput').click());
+stage.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
+stage.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+stage.addEventListener('drop',e=>{
+  e.preventDefault();dropZone.classList.remove('drag');
+  const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('video/'))loadVid(f);
 });
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+initStyleGrid();
+initSwatches();
+checkMp4Support();
 </script>
 </body>
 </html>
