@@ -31,9 +31,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
 #recDot .dot{width:8px;height:8px;background:#e8291c;border-radius:50%;animation:blink .8s infinite}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-/* Edge debug overlay */
-#edgeCanvas{position:absolute;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-50%);opacity:0;transition:opacity .3s;z-index:4;}
-#edgeCanvas.show{opacity:.35}
+#edgeCanvas{position:absolute;pointer-events:none;top:50%;left:50%;transform:translate(-50%,-50%);
+  opacity:0;transition:opacity .3s;z-index:4;}
+#edgeCanvas.show{opacity:.4}
 
 #sidebar{width:264px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);
   display:flex;flex-direction:column;overflow-y:auto;}
@@ -68,23 +68,35 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;heigh
 .tog::after{content:'';position:absolute;top:2px;left:2px;width:7px;height:7px;background:#444;transition:transform .2s,background .2s}
 .tog.on::after{transform:translateX(13px);background:#fff}
 
-/* Tracking viz toggle */
+/* Track mode buttons */
+.track-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:12px}
+.track-btn{padding:8px 6px;background:#0d0d0d;border:1px solid #1e1e1e;color:var(--dim);
+  font-family:var(--mono);font-size:9px;letter-spacing:.06em;cursor:pointer;
+  transition:all .15s;text-transform:uppercase;text-align:left;line-height:1.5}
+.track-btn:hover{border-color:#333;color:#888}
+.track-btn.on{border-color:var(--red);color:var(--red);background:#1a0000}
+.track-btn .tb-name{font-size:9px;display:block}
+.track-btn .tb-desc{font-size:8px;color:var(--dim);display:block;margin-top:1px}
+.track-btn.on .tb-desc{color:#aa4444}
+
 .edge-toggle{display:flex;justify-content:space-between;align-items:center;
   padding:6px 8px;border:1px solid #1a1a1a;margin-bottom:10px;cursor:pointer;
   font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.07em;transition:border-color .15s}
-.edge-toggle:hover{border-color:#333;color:#888}
-.edge-toggle.on{border-color:var(--red);color:var(--red)}
+.edge-toggle:hover{border-color:#333;color:#888}.edge-toggle.on{border-color:var(--red);color:var(--red)}
 
-/* Style grid */
+/* Coord label style selector */
+.coord-style-row{display:flex;gap:4px;margin-bottom:10px}
+.cs-btn{flex:1;padding:6px 3px;background:transparent;border:1px solid #1e1e1e;color:var(--dim);
+  font-family:var(--mono);font-size:8px;letter-spacing:.05em;cursor:pointer;transition:all .15s;text-transform:uppercase;}
+.cs-btn:hover{border-color:#333;color:var(--text)}.cs-btn.on{border-color:var(--red);color:var(--red)}
+
 .style-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-bottom:10px}
 .style-btn{padding:0;height:44px;background:#0d0d0d;border:1px solid #1e1e1e;cursor:pointer;
   transition:border-color .15s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 .style-btn:hover{border-color:#333}.style-btn.on{border-color:var(--red)}
-.style-btn svg{pointer-events:none}
 .style-btn span{font-family:var(--mono);font-size:7px;color:var(--dim);letter-spacing:.05em;pointer-events:none}
 .style-btn.on span{color:var(--red)}
 
-/* Color */
 .swatch-grid{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
 .swatch{width:20px;height:20px;border:1px solid transparent;cursor:pointer;transition:transform .15s,border-color .15s;flex-shrink:0}
 .swatch:hover{transform:scale(1.15)}.swatch.active{border-color:#fff!important;transform:scale(1.1)}
@@ -178,33 +190,31 @@ input[type=number]:focus{border-color:var(--red)}
 
     <!-- TRACKING -->
     <div class="panel">
-      <div class="ptitle">TRACKING</div>
+      <div class="ptitle">TRACKING MODE</div>
+      <div class="track-grid" id="trackGrid">
+        <!-- filled by JS -->
+      </div>
 
       <div class="edge-toggle" id="edgeToggle" onclick="toggleEdgeViz()">
-        <span>SHOW EDGE MAP</span>
+        <span>SHOW DETECTION MAP</span>
         <span id="edgeVizLabel">OFF</span>
       </div>
 
       <div class="ctrl">
-        <div class="clabel">EDGE SENSITIVITY <span class="v" id="vEdge">50%</span></div>
+        <div class="clabel">SENSITIVITY <span class="v" id="vEdge">50%</span></div>
         <input type="range" id="sEdge" min="1" max="100" value="50" oninput="setP('edge',this.value)">
       </div>
       <div class="ctrl">
-        <div class="clabel">TRACK BIAS <span class="v" id="vBias">70%</span></div>
-        <input type="range" id="sBias" min="0" max="100" value="70" oninput="setP('bias',this.value)">
-        <!-- 0=fully random, 100=fully edge-locked -->
+        <div class="clabel">MIN DISTANCE <span class="v" id="vMinDist">14px</span></div>
+        <input type="range" id="sMinDist" min="4" max="80" value="14" oninput="setP('minDist',this.value)">
       </div>
       <div class="ctrl">
-        <div class="clabel">SAMPLE SCALE <span class="v" id="vSample">¼×</span></div>
+        <div class="clabel">SAMPLE RES <span class="v" id="vSample">¼×</span></div>
         <input type="range" id="sSample" min="1" max="4" value="2" oninput="setP('sample',this.value)">
-        <!-- edge detection resolution: lower = faster -->
-      </div>
-      <div class="ctrl">
-        <div class="clabel">MIN DIST <span class="v" id="vMinDist">12px</span></div>
-        <input type="range" id="sMinDist" min="4" max="60" value="12" oninput="setP('minDist',this.value)">
       </div>
     </div>
 
+    <!-- EFFECTS -->
     <div class="panel">
       <div class="ptitle">EFFECTS</div>
       <div class="trow"><span>WIREFRAME</span><div class="tog on" id="tWire" onclick="togFx('wire')"></div></div>
@@ -217,13 +227,14 @@ input[type=number]:focus{border-color:var(--red)}
           <input type="range" id="sWarp" min="0" max="100" value="50" oninput="setP('warp',this.value)"></div>
         <div class="ctrl"><div class="clabel">GLITCH <span class="v" id="vGlitch">0.50</span></div>
           <input type="range" id="sGlitch" min="0" max="100" value="50" oninput="setP('glitch',this.value)"></div>
-        <div class="ctrl"><div class="clabel">DENSITY <span class="v" id="vLines">8</span></div>
-          <input type="range" id="sLines" min="4" max="40" value="8" oninput="setP('lines',this.value)"></div>
+        <div class="ctrl"><div class="clabel">DENSITY <span class="v" id="vLines">10</span></div>
+          <input type="range" id="sLines" min="4" max="40" value="10" oninput="setP('lines',this.value)"></div>
         <div class="ctrl"><div class="clabel">SEED <span class="v" id="vSeed">42</span></div>
           <input type="range" id="sSeed" min="0" max="999" value="42" oninput="setP('seed',this.value)"></div>
       </div>
     </div>
 
+    <!-- WIRE STYLE -->
     <div class="panel">
       <div class="ptitle">WIRE STYLE</div>
       <div class="style-grid" id="styleGrid"></div>
@@ -238,6 +249,28 @@ input[type=number]:focus{border-color:var(--red)}
       </div>
     </div>
 
+    <!-- COORD LABELS -->
+    <div class="panel">
+      <div class="ptitle">COORD LABELS</div>
+      <div class="clabel" style="margin-bottom:6px">LABEL FORMAT</div>
+      <div class="coord-style-row">
+        <button class="cs-btn on" id="csIndex"    onclick="setCoordStyle('index')">INDEX</button>
+        <button class="cs-btn"    id="csXY"       onclick="setCoordStyle('xy')">X/Y</button>
+        <button class="cs-btn"    id="csNorm"     onclick="setCoordStyle('norm')">0-1</button>
+        <button class="cs-btn"    id="csMixed"    onclick="setCoordStyle('mixed')">MIX</button>
+      </div>
+      <div class="ctrl">
+        <div class="clabel">LABEL SIZE <span class="v" id="vLabelSize">11px</span></div>
+        <input type="range" id="sLabelSize" min="6" max="24" value="11" oninput="setP('labelSize',this.value)">
+      </div>
+      <div class="ctrl">
+        <div class="clabel">LABEL OPACITY <span class="v" id="vLabelOp">88%</span></div>
+        <input type="range" id="sLabelOp" min="10" max="100" value="88" oninput="setP('labelOp',this.value)">
+      </div>
+      <div class="trow"><span>SHOW LINE TO POINT</span><div class="tog" id="tLabelLine" onclick="togFx('labelLine')"></div></div>
+    </div>
+
+    <!-- WIRE COLOR -->
     <div class="panel">
       <div class="ptitle">WIRE COLOR</div>
       <div class="swatch-grid" id="swatchGrid"></div>
@@ -248,6 +281,7 @@ input[type=number]:focus{border-color:var(--red)}
       </div>
     </div>
 
+    <!-- PRESETS -->
     <div class="panel">
       <div class="ptitle">PRESETS</div>
       <div class="pgrid">
@@ -260,6 +294,7 @@ input[type=number]:focus{border-color:var(--red)}
       </div>
     </div>
 
+    <!-- EXPORT -->
     <div class="panel">
       <div class="ptitle">EXPORT</div>
       <div class="tab-row">
@@ -275,10 +310,40 @@ input[type=number]:focus{border-color:var(--red)}
           <button class="qbtn" onclick="setQuality(4,this)">4×</button>
         </div>
         <div class="res-badge show" id="resBadge">—</div>
-        <div class="erow"><label>FRAMES</label><input type="number" id="eFrames" value="12" min="1" max="300"></div>
-        <div class="erow"><label>START %</label><input type="number" id="eStart" value="0" min="0" max="100"></div>
-        <div class="erow"><label>END %</label><input type="number" id="eEnd" value="100" min="0" max="100"></div>
+
+        <!-- MODE: manual or all-frames -->
+        <div class="clabel" style="margin-bottom:5px">EXPORT MODE</div>
+        <div class="qsel" style="margin-bottom:10px">
+          <button class="qbtn on" id="pModeManual" onclick="setPngMode('manual')">MANUAL</button>
+          <button class="qbtn"    id="pModeAll"    onclick="setPngMode('all')">ALL FRAMES</button>
+        </div>
+
+        <!-- Manual mode controls -->
+        <div id="pManualControls">
+          <div class="erow"><label>FRAMES</label><input type="number" id="eFrames" value="12" min="1" max="9999"></div>
+          <div class="erow"><label>START %</label><input type="number" id="eStart" value="0"  min="0" max="100"></div>
+          <div class="erow"><label>END %</label>  <input type="number" id="eEnd"   value="100" min="0" max="100"></div>
+        </div>
+
+        <!-- All-frames mode controls -->
+        <div id="pAllControls" style="display:none">
+          <div class="clabel" style="margin-bottom:5px">CAPTURE FPS</div>
+          <div class="qsel" style="margin-bottom:9px">
+            <button class="qbtn" onclick="setPngFps(12,this)">12fps</button>
+            <button class="qbtn on" id="pFpsDefault" onclick="setPngFps(24,this)">24fps</button>
+            <button class="qbtn" onclick="setPngFps(30,this)">30fps</button>
+          </div>
+          <div class="erow"><label>START %</label><input type="number" id="eAllStart" value="0"   min="0" max="100"></div>
+          <div class="erow"><label>END %</label>  <input type="number" id="eAllEnd"   value="100" min="0" max="100"></div>
+          <div id="allFrameCount" style="font-family:var(--mono);font-size:9px;color:#2a6b2e;
+            padding:4px 6px;border:1px solid #1a3d1e;background:#0a1f0c;margin-bottom:8px;display:none">
+            — frames
+          </div>
+        </div>
+
         <button class="bexp" id="btnPngExport" onclick="doPngExport()" disabled>↓ EXPORT PNG</button>
+        <button class="bexp" id="btnPngStop" onclick="stopPngExport()"
+          style="display:none;background:#333;margin-top:4px">■ CANCEL</button>
       </div>
       <div class="exp-section" id="secMp4">
         <div class="clabel" style="margin-bottom:5px">VIDEO QUALITY</div>
@@ -309,8 +374,8 @@ input[type=number]:focus{border-color:var(--red)}
 </div>
 
 <video id="vid" style="display:none" muted playsinline crossorigin="anonymous"></video>
-<!-- Small canvas for edge sampling -->
 <canvas id="sampleCanvas" style="display:none"></canvas>
+<canvas id="prevCanvas" style="display:none"></canvas><!-- for motion diff -->
 
 <script>
 // ═══════════════════════════════════════════════
@@ -318,183 +383,245 @@ input[type=number]:focus{border-color:var(--red)}
 // ═══════════════════════════════════════════════
 const S = {
   loaded:false, playing:false, duration:0, rafId:null,
-  fx:{ wire:true, coord:true, warp:true, hglitch:true, chroma:false, multi:false },
-  p:{ warp:.5, glitch:.5, lines:8, seed:42, opacity:.85, lineW:.7,
-      edge:.5, bias:.7, sample:2, minDist:12 },
+  fx:{ wire:true, coord:true, warp:true, hglitch:true, chroma:false, multi:false, labelLine:false },
+  p:{ warp:.5, glitch:.5, lines:10, seed:42, opacity:.85, lineW:.7,
+      edge:.5, minDist:14, sample:2, labelSize:11, labelOp:.88 },
   wireColor:'#e8291c',
   wireStyle:'mesh',
+  coordStyle:'index',   // index | xy | norm | mixed
+  trackMode:'edge',     // edge | motion | bright | dark | subject | contour
   multiColors:['#e8291c','#00ffcc','#ffffff','#ffdd00','#aa44ff','#ff6b00','#00e5ff'],
   exportScale:2, videoBitrate:8000000, videoFPS:30,
   dispW:0, dispH:0,
-  // Edge tracking cache
   edgePoints:[], lastEdgeTime:-999,
   edgeVizOn:false,
+  prevLum:null,   // for motion detection
   mediaRec:null, recChunks:[],
+  pointCounter:0, // global sequential counter across frames
 };
 
 // ═══════════════════════════════════════════════
-// WIRE STYLES
+// TRACKING MODES
 // ═══════════════════════════════════════════════
-const WIRE_STYLES=[
-  {id:'mesh',      label:'MESH',   draw:drawIconMesh},
-  {id:'rect-solid',label:'RECT',   draw:drawIconRect},
-  {id:'rect-dash', label:'DASH',   draw:drawIconDash},
-  {id:'rect-dot',  label:'DOT',    draw:drawIconDot},
-  {id:'cross',     label:'CROSS',  draw:drawIconCross},
-  {id:'scan',      label:'SCAN',   draw:drawIconScan},
-  {id:'circle',    label:'CIRCLE', draw:drawIconCircle},
-  {id:'triangle',  label:'TRI',    draw:drawIconTri},
-  {id:'grid',      label:'GRID',   draw:drawIconGrid},
+const TRACK_MODES = [
+  { id:'edge',    name:'EDGE',    desc:'輪郭・境界線' },
+  { id:'motion',  name:'MOTION',  desc:'動いている領域' },
+  { id:'bright',  name:'BRIGHT',  desc:'明るい領域' },
+  { id:'dark',    name:'DARK',    desc:'暗い領域' },
+  { id:'subject', name:'SUBJECT', desc:'中央の被写体' },
+  { id:'contour', name:'CONTOUR', desc:'全方位エッジ+密度' },
 ];
-function drawIconMesh(c){c.strokeStyle='#888';c.lineWidth=.8;const p=[[6,10],[14,6],[22,12],[10,18],[18,19]];p.forEach(([x,y],i)=>{if(i<p.length-1){c.beginPath();c.moveTo(x,y);c.lineTo(p[i+1][0],p[i+1][1]);c.stroke();}});c.beginPath();c.moveTo(6,10);c.lineTo(10,18);c.stroke();c.fillStyle='#888';p.forEach(([x,y])=>{c.beginPath();c.arc(x,y,1.5,0,Math.PI*2);c.fill();});}
-function drawIconRect(c){c.strokeStyle='#888';c.lineWidth=.8;c.strokeRect(5,5,18,18);}
-function drawIconDash(c){c.strokeStyle='#888';c.lineWidth=.8;c.setLineDash([3,2]);c.strokeRect(5,5,18,18);c.setLineDash([]);}
-function drawIconDot(c){c.strokeStyle='#888';c.lineWidth=1;c.setLineDash([1,2]);c.strokeRect(5,5,18,18);c.setLineDash([]);}
-function drawIconCross(c){c.strokeStyle='#888';c.lineWidth=.8;c.beginPath();c.moveTo(4,4);c.lineTo(24,24);c.moveTo(24,4);c.lineTo(4,24);c.stroke();}
-function drawIconScan(c){c.strokeStyle='#888';c.lineWidth=.8;[6,10,14,18,22].forEach(y=>{c.beginPath();c.moveTo(4,y);c.lineTo(24,y);c.stroke();});}
-function drawIconCircle(c){c.strokeStyle='#888';c.lineWidth=.8;c.beginPath();c.arc(14,14,9,0,Math.PI*2);c.stroke();}
-function drawIconTri(c){c.strokeStyle='#888';c.lineWidth=.8;c.beginPath();c.moveTo(14,4);c.lineTo(24,23);c.lineTo(4,23);c.closePath();c.stroke();}
-function drawIconGrid(c){c.strokeStyle='#888';c.lineWidth=.5;for(let x=5;x<=23;x+=6){c.beginPath();c.moveTo(x,4);c.lineTo(x,24);c.stroke();}for(let y=5;y<=23;y+=6){c.beginPath();c.moveTo(4,y);c.lineTo(24,y);c.stroke();}}
 
-function initStyleGrid(){
-  const grid=document.getElementById('styleGrid');
-  WIRE_STYLES.forEach(({id,label,draw})=>{
+function initTrackGrid(){
+  const grid=document.getElementById('trackGrid');
+  TRACK_MODES.forEach(({id,name,desc})=>{
     const btn=document.createElement('button');
-    btn.className='style-btn'+(id===S.wireStyle?' on':'');
-    btn.dataset.style=id;btn.onclick=()=>setWireStyle(id);
-    const ic=document.createElement('canvas');ic.width=28;ic.height=28;
-    const cx=ic.getContext('2d');draw(cx);
-    const lbl=document.createElement('span');lbl.textContent=label;
-    btn.appendChild(ic);btn.appendChild(lbl);grid.appendChild(btn);
+    btn.className='track-btn'+(id===S.trackMode?' on':'');
+    btn.dataset.mode=id;
+    btn.innerHTML=`<span class="tb-name">${name}</span><span class="tb-desc">${desc}</span>`;
+    btn.onclick=()=>{
+      S.trackMode=id;S.edgePoints=[];S.prevLum=null;
+      document.querySelectorAll('.track-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===id));
+      if(S.loaded&&!S.playing)render();
+    };
+    grid.appendChild(btn);
   });
 }
-function setWireStyle(id){
-  S.wireStyle=id;
-  document.querySelectorAll('.style-btn').forEach(b=>b.classList.toggle('on',b.dataset.style===id));
-  if(S.loaded&&!S.playing)render();
-}
 
 // ═══════════════════════════════════════════════
-// SOBEL EDGE DETECTION → tracked points
+// SAMPLING HELPERS
 // ═══════════════════════════════════════════════
 const sampleCanvas=document.getElementById('sampleCanvas');
 const sampleCtx=sampleCanvas.getContext('2d',{willReadFrequently:true});
+const prevCanvas=document.getElementById('prevCanvas');
+const prevCtx=prevCanvas.getContext('2d',{willReadFrequently:true});
 
-function buildEdgePoints(targetW, targetH){
-  // Step 1: sample video at reduced resolution
-  const div=Math.pow(2,S.p.sample); // 2,4,8,16
-  const sw=Math.max(Math.floor(targetW/div),4);
-  const sh=Math.max(Math.floor(targetH/div),4);
+function getSampleDims(targetW,targetH){
+  const div=Math.pow(2,S.p.sample);
+  return [Math.max(Math.floor(targetW/div),8), Math.max(Math.floor(targetH/div),8)];
+}
+
+function sampleVideo(tw,th){
+  const [sw,sh]=getSampleDims(tw,th);
   sampleCanvas.width=sw;sampleCanvas.height=sh;
   sampleCtx.drawImage(vid,0,0,sw,sh);
+  try{ return {data:sampleCtx.getImageData(0,0,sw,sh).data,sw,sh}; }
+  catch(e){ return null; }
+}
 
-  let pixels;
-  try{ pixels=sampleCtx.getImageData(0,0,sw,sh).data; }
-  catch(e){ return []; }
-
-  // Step 2: Sobel on luminance
+function getLum(data,sw,sh){
   const lum=new Float32Array(sw*sh);
-  for(let i=0;i<sw*sh;i++){
-    const p=i*4;lum[i]=(pixels[p]*.299+pixels[p+1]*.587+pixels[p+2]*.114)/255;
-  }
+  for(let i=0;i<sw*sh;i++){const p=i*4;lum[i]=(data[p]*.299+data[p+1]*.587+data[p+2]*.114)/255;}
+  return lum;
+}
+
+function sobelMag(lum,sw,sh){
   const mag=new Float32Array(sw*sh);
-  let maxMag=0;
+  let maxM=0;
   for(let y=1;y<sh-1;y++){
     for(let x=1;x<sw-1;x++){
       const gx=(-lum[(y-1)*sw+(x-1)]+lum[(y-1)*sw+(x+1)]
-                -2*lum[y*sw+(x-1)]+2*lum[y*sw+(x+1)]
-                -lum[(y+1)*sw+(x-1)]+lum[(y+1)*sw+(x+1)]);
+               -2*lum[y*sw+(x-1)]+2*lum[y*sw+(x+1)]
+               -lum[(y+1)*sw+(x-1)]+lum[(y+1)*sw+(x+1)]);
       const gy=(-lum[(y-1)*sw+(x-1)]-2*lum[(y-1)*sw+x]-lum[(y-1)*sw+(x+1)]
-                +lum[(y+1)*sw+(x-1)]+2*lum[(y+1)*sw+x]+lum[(y+1)*sw+(x+1)]);
+               +lum[(y+1)*sw+(x-1)]+2*lum[(y+1)*sw+x]+lum[(y+1)*sw+(x+1)]);
       const m=Math.sqrt(gx*gx+gy*gy);
-      mag[y*sw+x]=m;if(m>maxMag)maxMag=m;
+      mag[y*sw+x]=m;if(m>maxM)maxM=m;
     }
   }
+  return {mag,maxM};
+}
 
-  // Step 3: threshold & collect candidate pixels
-  const threshold=(1-S.p.edge)*maxMag*.9+.01;
-  const candidates=[];
-  for(let y=1;y<sh-1;y++){
-    for(let x=1;x<sw-1;x++){
-      if(mag[y*sw+x]>threshold){
-        candidates.push([x/sw*targetW, y/sh*targetH, mag[y*sw+x]]);
-      }
-    }
-  }
-
-  if(candidates.length===0)return[];
-
-  // Step 4: weighted random sampling with minimum distance constraint
-  const rand=rng(S.p.seed+Math.floor(vid.currentTime*10));
-  const n=S.p.lines*3+6; // target count
+// Poisson-disk-like point selection from scored map
+function selectPoints(scoreMap,sw,sh,targetW,targetH,n,threshold){
   const pts=[];
   const minD=S.p.minDist;
 
-  // Sort by edge strength descending for better sampling
-  candidates.sort((a,b)=>b[2]-a[2]);
-
-  // Take top candidates, with distance constraint
-  for(let i=0;i<candidates.length&&pts.length<n;i++){
-    const [cx,cy]=candidates[i];
-    let tooClose=false;
-    for(const [px,py] of pts){
-      if(Math.hypot(cx-px,cy-py)<minD){tooClose=true;break;}
+  // Collect candidates above threshold, sorted by score desc
+  const cands=[];
+  for(let i=0;i<sw*sh;i++){
+    if(scoreMap[i]>threshold){
+      const x=(i%sw)/sw*targetW;
+      const y=Math.floor(i/sw)/sh*targetH;
+      cands.push([x,y,scoreMap[i]]);
     }
-    if(!tooClose)pts.push([cx,cy]);
   }
+  cands.sort((a,b)=>b[2]-a[2]);
 
-  // Fill remaining with random points based on bias
-  const remaining=n-pts.length;
-  const randRng=rng(S.p.seed*777+Math.floor(vid.currentTime*13));
-  for(let i=0;i<remaining*20&&pts.length<n;i++){
-    let x,y;
-    if(randRng()<S.p.bias&&candidates.length>0){
-      // weighted pick from candidates
-      const idx=Math.floor(randRng()*Math.min(candidates.length,100));
-      [x,y]=candidates[idx];
-      x+=(randRng()-.5)*20;y+=(randRng()-.5)*20;
-    }else{
-      x=randRng()*targetW;y=randRng()*targetH;
-    }
-    x=Math.max(0,Math.min(targetW,x));y=Math.max(0,Math.min(targetH,y));
-    let tooClose=false;
+  // Greedy farthest-first selection — NO random jitter
+  for(let i=0;i<cands.length&&pts.length<n;i++){
+    const [cx,cy]=cands[i];
+    let ok=true;
     for(const [px,py] of pts){
-      if(Math.hypot(x-px,y-py)<minD*.5){tooClose=true;break;}
+      if(Math.hypot(cx-px,cy-py)<minD){ok=false;break;}
     }
-    if(!tooClose)pts.push([x,y]);
+    if(ok)pts.push([cx,cy]);
   }
-
   return pts;
 }
 
-// Edge viz overlay
+// ═══════════════════════════════════════════════
+// BUILD TRACKED POINTS — by mode
+// ═══════════════════════════════════════════════
+function buildEdgePoints(targetW,targetH){
+  const s=sampleVideo(targetW,targetH);
+  if(!s)return[];
+  const {data,sw,sh}=s;
+  const lum=getLum(data,sw,sh);
+  const n=S.p.lines*3+6;
+  const threshold=(1-S.p.edge);
+
+  let scoreMap=new Float32Array(sw*sh);
+
+  switch(S.trackMode){
+
+    case 'edge': {
+      const {mag,maxM}=sobelMag(lum,sw,sh);
+      const thr=threshold*maxM*.95;
+      for(let i=0;i<sw*sh;i++)scoreMap[i]=mag[i]>thr?mag[i]:0;
+      break;
+    }
+
+    case 'contour': {
+      // Full sobel + laplacian for finer contours
+      const {mag,maxM}=sobelMag(lum,sw,sh);
+      const thr=threshold*maxM*.7;
+      for(let y=1;y<sh-1;y++){
+        for(let x=1;x<sw-1;x++){
+          const lap=Math.abs(-lum[(y-1)*sw+x]-lum[(y+1)*sw+x]-lum[y*sw+(x-1)]-lum[y*sw+(x+1)]+4*lum[y*sw+x]);
+          const combined=(mag[y*sw+x]+lap*maxM)*0.5;
+          scoreMap[y*sw+x]=combined>thr?combined:0;
+        }
+      }
+      break;
+    }
+
+    case 'motion': {
+      if(!S.prevLum||S.prevLum.length!==sw*sh){
+        // First frame — seed prevLum and fall back to edge
+        S.prevLum=lum;
+        const {mag,maxM}=sobelMag(lum,sw,sh);
+        const thr=threshold*maxM*.9;
+        for(let i=0;i<sw*sh;i++)scoreMap[i]=mag[i]>thr?mag[i]:0;
+      } else {
+        // Frame difference
+        let maxDiff=0;
+        const diff=new Float32Array(sw*sh);
+        for(let i=0;i<sw*sh;i++){
+          diff[i]=Math.abs(lum[i]-S.prevLum[i]);
+          if(diff[i]>maxDiff)maxDiff=diff[i];
+        }
+        const thr=Math.max(0.01,threshold*maxDiff*.8);
+        for(let i=0;i<sw*sh;i++)scoreMap[i]=diff[i]>thr?diff[i]:0;
+        S.prevLum=lum;
+      }
+      break;
+    }
+
+    case 'bright': {
+      const thr=threshold*.7+.15;
+      for(let i=0;i<sw*sh;i++)scoreMap[i]=lum[i]>thr?lum[i]:0;
+      break;
+    }
+
+    case 'dark': {
+      const thr=(1-threshold)*.6;
+      for(let i=0;i<sw*sh;i++)scoreMap[i]=lum[i]<thr?1-lum[i]:0;
+      break;
+    }
+
+    case 'subject': {
+      // Combine center-weighted mask + edges
+      // → focuses on the central figure regardless of background
+      const {mag,maxM}=sobelMag(lum,sw,sh);
+      const thr=threshold*maxM*.7;
+      for(let y=0;y<sh;y++){
+        for(let x=0;x<sw;x++){
+          const cx=x/sw-.5,cy=y/sh-.42;
+          // Oval mask centered slightly above middle (head/torso area)
+          const dist=Math.sqrt(cx*cx*4+cy*cy*3.5);
+          const mask=Math.max(0,1-dist*1.6);
+          const edge=mag[y*sw+x];
+          // Blend: center region boost + edge requirement
+          const score=(edge>thr?edge:edge*.15)*(.3+mask*.7);
+          scoreMap[y*sw+x]=score;
+        }
+      }
+      break;
+    }
+  }
+
+  return selectPoints(scoreMap,sw,sh,targetW,targetH,n,0);
+}
+
+// ═══════════════════════════════════════════════
+// EDGE VIZ
+// ═══════════════════════════════════════════════
 const edgeCanvas=document.getElementById('edgeCanvas');
 const edgeCtx=edgeCanvas.getContext('2d');
 
 function drawEdgeViz(w,h){
   edgeCanvas.width=w;edgeCanvas.height=h;
   edgeCanvas.style.width=w+'px';edgeCanvas.style.height=h+'px';
-  const div=Math.pow(2,S.p.sample);
-  const sw=Math.max(Math.floor(w/div),4),sh=Math.max(Math.floor(h/div),4);
-  sampleCanvas.width=sw;sampleCanvas.height=sh;
-  sampleCtx.drawImage(vid,0,0,sw,sh);
-  let pixels;try{pixels=sampleCtx.getImageData(0,0,sw,sh).data;}catch(e){return;}
-  const lum=new Float32Array(sw*sh);
-  for(let i=0;i<sw*sh;i++){const p=i*4;lum[i]=(pixels[p]*.299+pixels[p+1]*.587+pixels[p+2]*.114)/255;}
+  const s=sampleVideo(w,h);if(!s)return;
+  const {data,sw,sh}=s;
+  const lum=getLum(data,sw,sh);
+  const {mag,maxM}=sobelMag(lum,sw,sh);
   const out=edgeCtx.createImageData(w,h);
+  const scaleX=w/sw,scaleY=h/sh;
   for(let y=0;y<h;y++){
     for(let x=0;x<w;x++){
-      const sx=Math.floor(x/div),sy=Math.floor(y/div);
-      if(sx<1||sx>=sw-1||sy<1||sy>=sh-1){continue;}
-      const gx=(-lum[(sy-1)*sw+(sx-1)]+lum[(sy-1)*sw+(sx+1)]-2*lum[sy*sw+(sx-1)]+2*lum[sy*sw+(sx+1)]-lum[(sy+1)*sw+(sx-1)]+lum[(sy+1)*sw+(sx+1)]);
-      const gy=(-lum[(sy-1)*sw+(sx-1)]-2*lum[(sy-1)*sw+sx]-lum[(sy-1)*sw+(sx+1)]+lum[(sy+1)*sw+(sx-1)]+2*lum[(sy+1)*sw+sx]+lum[(sy+1)*sw+(sx+1)]);
-      const m=Math.min(Math.sqrt(gx*gx+gy*gy)*3,1);
+      const sx=Math.min(Math.floor(x/scaleX),sw-1),sy=Math.min(Math.floor(y/scaleY),sh-1);
+      const m=Math.min(mag[sy*sw+sx]/Math.max(maxM,.001),1);
       const idx=(y*w+x)*4;
       out.data[idx]=Math.round(m*232);out.data[idx+1]=Math.round(m*41);
-      out.data[idx+2]=Math.round(m*28);out.data[idx+3]=Math.round(m*255);
+      out.data[idx+2]=Math.round(m*28);out.data[idx+3]=Math.round(m*220);
     }
   }
   edgeCtx.putImageData(out,0,0);
+  // Draw tracked points on viz
+  edgeCtx.fillStyle='#fff';
+  S.edgePoints.forEach(([x,y])=>{edgeCtx.beginPath();edgeCtx.arc(x,y,3,0,Math.PI*2);edgeCtx.fill();});
 }
 
 function toggleEdgeViz(){
@@ -561,6 +688,7 @@ function resize(){
   gl.viewport(0,0,w,h);updateResBadge();
 }
 new ResizeObserver(resize).observe(stage);
+
 function updateResBadge(){
   const b=document.getElementById('resBadge');if(!S.loaded){b.classList.remove('show');return;}
   const ew=Math.round(vid.videoWidth*S.exportScale),eh=Math.round(vid.videoHeight*S.exportScale);
@@ -583,9 +711,8 @@ function render(){
   if(!S.loaded)return;
   if(!glPass())return;
   const w=ov.width,h=ov.height;
-  // Rebuild edge points (throttled: only if enough time has passed or frame changed)
   const t=vid.currentTime;
-  if(Math.abs(t-S.lastEdgeTime)>0.03||S.edgePoints.length===0){
+  if(Math.abs(t-S.lastEdgeTime)>0.025||S.edgePoints.length===0){
     S.edgePoints=buildEdgePoints(w,h);
     S.lastEdgeTime=t;
   }
@@ -596,10 +723,68 @@ function render(){
 }
 
 // ═══════════════════════════════════════════════
-// DRAW WIRE — all styles using tracked points
+// COORD LABEL FORMAT
 // ═══════════════════════════════════════════════
+function formatLabel(idx,x,y,w,h){
+  switch(S.coordStyle){
+    case 'index': return String(idx);
+    case 'xy':    return `${Math.round(x)},${Math.round(y)}`;
+    case 'norm':  return `${(x/w).toFixed(4)},${(y/h).toFixed(4)}`;
+    case 'mixed': {
+      // alternates between index and normalized coord per point
+      if(idx%3===0) return String(idx);
+      if(idx%3===1) return (x/w).toFixed(6).replace(/0+$/,'');
+      return (y/h).toFixed(6).replace(/0+$/,'');
+    }
+    default: return String(idx);
+  }
+}
+
+function setCoordStyle(style){
+  S.coordStyle=style;
+  ['index','xy','norm','mixed'].forEach(s=>{
+    const el=document.getElementById('cs'+s.charAt(0).toUpperCase()+s.slice(1));
+    if(el)el.classList.toggle('on',s===style);
+  });
+  if(S.loaded&&!S.playing)render();
+}
+
+// ═══════════════════════════════════════════════
+// WIRE STYLES
+// ═══════════════════════════════════════════════
+const WIRE_STYLES=[
+  {id:'mesh',       label:'MESH',   draw:c=>{c.strokeStyle='#888';c.lineWidth=.8;const p=[[6,10],[14,6],[22,12],[10,18],[18,19]];p.forEach(([x,y],i)=>{if(i<p.length-1){c.beginPath();c.moveTo(x,y);c.lineTo(p[i+1][0],p[i+1][1]);c.stroke();}});c.beginPath();c.moveTo(6,10);c.lineTo(10,18);c.stroke();c.fillStyle='#888';p.forEach(([x,y])=>{c.beginPath();c.arc(x,y,1.5,0,Math.PI*2);c.fill();})}},
+  {id:'rect-solid', label:'RECT',   draw:c=>{c.strokeStyle='#888';c.lineWidth=.8;c.strokeRect(5,5,18,18);}},
+  {id:'rect-dash',  label:'DASH',   draw:c=>{c.strokeStyle='#888';c.lineWidth=.8;c.setLineDash([3,2]);c.strokeRect(5,5,18,18);c.setLineDash([]);}},
+  {id:'rect-dot',   label:'DOT',    draw:c=>{c.strokeStyle='#888';c.lineWidth=1;c.setLineDash([1,2]);c.strokeRect(5,5,18,18);c.setLineDash([]);}},
+  {id:'cross',      label:'CROSS',  draw:c=>{c.strokeStyle='#888';c.lineWidth=.8;c.beginPath();c.moveTo(4,4);c.lineTo(24,24);c.moveTo(24,4);c.lineTo(4,24);c.stroke();}},
+  {id:'scan',       label:'SCAN',   draw:c=>{c.strokeStyle='#888';c.lineWidth=.8;[6,10,14,18,22].forEach(y=>{c.beginPath();c.moveTo(4,y);c.lineTo(24,y);c.stroke();})}},
+  {id:'circle',     label:'CIRCLE', draw:c=>{c.strokeStyle='#888';c.lineWidth=.8;c.beginPath();c.arc(14,14,9,0,Math.PI*2);c.stroke();}},
+  {id:'triangle',   label:'TRI',    draw:c=>{c.strokeStyle='#888';c.lineWidth=.8;c.beginPath();c.moveTo(14,4);c.lineTo(24,23);c.lineTo(4,23);c.closePath();c.stroke();}},
+  {id:'grid',       label:'GRID',   draw:c=>{c.strokeStyle='#888';c.lineWidth=.5;for(let x=5;x<=23;x+=6){c.beginPath();c.moveTo(x,4);c.lineTo(x,24);c.stroke();}for(let y=5;y<=23;y+=6){c.beginPath();c.moveTo(4,y);c.lineTo(24,y);c.stroke();}}},
+];
+
+function initStyleGrid(){
+  const grid=document.getElementById('styleGrid');
+  WIRE_STYLES.forEach(({id,label,draw})=>{
+    const btn=document.createElement('button');
+    btn.className='style-btn'+(id===S.wireStyle?' on':'');
+    btn.dataset.style=id;btn.onclick=()=>setWireStyle(id);
+    const ic=document.createElement('canvas');ic.width=28;ic.height=28;draw(ic.getContext('2d'));
+    const lbl=document.createElement('span');lbl.textContent=label;
+    btn.appendChild(ic);btn.appendChild(lbl);grid.appendChild(btn);
+  });
+}
+function setWireStyle(id){
+  S.wireStyle=id;
+  document.querySelectorAll('.style-btn').forEach(b=>b.classList.toggle('on',b.dataset.style===id));
+  if(S.loaded&&!S.playing)render();
+}
 function getColor(i){return S.fx.multi?S.multiColors[i%S.multiColors.length]:S.wireColor;}
 
+// ═══════════════════════════════════════════════
+// DRAW WIRE OVERLAY
+// ═══════════════════════════════════════════════
 function drawWireOverlay(c,w,h,t,isExport,pts){
   if(!pts||pts.length===0)return;
   const lw=isExport?S.p.lineW*(w/Math.max(S.dispW,1)):S.p.lineW;
@@ -607,29 +792,29 @@ function drawWireOverlay(c,w,h,t,isExport,pts){
   c.globalAlpha=S.p.opacity;
 
   switch(S.wireStyle){
-    case 'mesh':       drawMesh(c,w,h,pts,lw,dotR); break;
-    case 'rect-solid': drawRectsFromPts(c,w,h,pts,lw,'solid'); break;
-    case 'rect-dash':  drawRectsFromPts(c,w,h,pts,lw,'dash'); break;
-    case 'rect-dot':   drawRectsFromPts(c,w,h,pts,lw,'dot'); break;
-    case 'cross':      drawCrossesFromPts(c,w,h,pts,lw); break;
-    case 'scan':       drawScanFromPts(c,w,h,pts,lw); break;
-    case 'circle':     drawCirclesFromPts(c,w,h,pts,lw); break;
-    case 'triangle':   drawTriFromPts(c,w,h,pts,lw); break;
-    case 'grid':       drawGridFromPts(c,w,h,pts,lw); break;
+    case 'mesh':      drawMesh(c,w,h,pts,lw,dotR);break;
+    case 'rect-solid':drawRects(c,w,h,pts,lw,'solid');break;
+    case 'rect-dash': drawRects(c,w,h,pts,lw,'dash');break;
+    case 'rect-dot':  drawRects(c,w,h,pts,lw,'dot');break;
+    case 'cross':     drawCrosses(c,w,h,pts,lw);break;
+    case 'scan':      drawScan(c,w,h,pts,lw);break;
+    case 'circle':    drawCircles(c,w,h,pts,lw);break;
+    case 'triangle':  drawTri(c,w,h,pts,lw);break;
+    case 'grid':      drawGrid(c,w,h,pts,lw);break;
   }
 
-  if(S.fx.coord)drawCoordLabels(c,w,h,pts,isExport);
+  if(S.fx.coord)drawCoords(c,w,h,pts,isExport);
   c.globalAlpha=1;c.setLineDash([]);
 }
 
-// MESH — connect nearby tracked points
 function drawMesh(c,w,h,pts,lw,dotR){
   c.lineWidth=lw;
+  const maxD=w*.3;
   for(let i=0;i<pts.length;i++){
-    const ds=pts.map((p,j)=>i===j?1e9:Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]));
-    const maxConn=w*.28;
-    ds.map((d,j)=>[d,j]).sort((a,b)=>a[0]-b[0]).slice(0,3).forEach(([d,j])=>{
-      if(d<maxConn){
+    // connect to nearest 2-3 only
+    const dists=pts.map((p,j)=>i===j?1e9:Math.hypot(p[0]-pts[i][0],p[1]-pts[i][1]));
+    dists.map((d,j)=>[d,j]).sort((a,b)=>a[0]-b[0]).slice(0,3).forEach(([d,j])=>{
+      if(d<maxD){
         if(S.fx.multi){const g=c.createLinearGradient(pts[i][0],pts[i][1],pts[j][0],pts[j][1]);
           g.addColorStop(0,getColor(i));g.addColorStop(1,getColor(j));c.strokeStyle=g;}
         else c.strokeStyle=S.wireColor;
@@ -642,131 +827,106 @@ function drawMesh(c,w,h,pts,lw,dotR){
   c.globalAlpha=S.p.opacity;
 }
 
-// RECTS — draw bounding boxes around clusters of tracked points
-function drawRectsFromPts(c,w,h,pts,lw,mode){
+function drawRects(c,w,h,pts,lw,mode){
   c.lineWidth=lw;
   if(mode==='dash')c.setLineDash([lw*6,lw*3]);
   else if(mode==='dot')c.setLineDash([lw,lw*3]);
   else c.setLineDash([]);
-  // group nearby pts into clusters → bounding rect per cluster
   const used=new Array(pts.length).fill(false);
   for(let i=0;i<pts.length;i++){
     if(used[i])continue;
     const cluster=[pts[i]];used[i]=true;
     for(let j=i+1;j<pts.length;j++){
-      if(!used[j]&&Math.hypot(pts[j][0]-pts[i][0],pts[j][1]-pts[i][1])<w*.2){
-        cluster.push(pts[j]);used[j]=true;
-      }
+      if(!used[j]&&Math.hypot(pts[j][0]-pts[i][0],pts[j][1]-pts[i][1])<w*.18){cluster.push(pts[j]);used[j]=true;}
     }
     if(cluster.length<2)continue;
     const xs=cluster.map(p=>p[0]),ys=cluster.map(p=>p[1]);
-    const x0=Math.min(...xs)-8,y0=Math.min(...ys)-8;
-    const rw=Math.max(...xs)-x0+8,rh=Math.max(...ys)-y0+8;
-    c.strokeStyle=getColor(i);
-    c.strokeRect(x0,y0,rw,rh);
+    const x0=Math.min(...xs)-10,y0=Math.min(...ys)-10;
+    const rw=Math.max(...xs)-x0+10,rh=Math.max(...ys)-y0+10;
+    c.strokeStyle=getColor(i);c.strokeRect(x0,y0,rw,rh);
     if(mode==='solid'){
       c.fillStyle=getColor(i);
-      [[x0,y0],[x0+rw,y0],[x0,y0+rh],[x0+rw,y0+rh]].forEach(([cx,cy])=>{
-        c.beginPath();c.arc(cx,cy,lw*2,0,Math.PI*2);c.fill();
-      });
+      [[x0,y0],[x0+rw,y0],[x0,y0+rh],[x0+rw,y0+rh]].forEach(([cx,cy])=>{c.beginPath();c.arc(cx,cy,lw*2,0,Math.PI*2);c.fill();});
     }
   }
   c.setLineDash([]);
 }
 
-// CROSS — X marks at each tracked point
-function drawCrossesFromPts(c,w,h,pts,lw){
+function drawCrosses(c,w,h,pts,lw){
   c.lineWidth=lw;
   pts.forEach(([x,y],i)=>{
     c.strokeStyle=getColor(i);
-    const sz=Math.max(w*.015,6);
+    const sz=Math.max(w*.016,6);
     c.beginPath();c.moveTo(x-sz,y);c.lineTo(x+sz,y);c.moveTo(x,y-sz);c.lineTo(x,y+sz);c.stroke();
-    c.globalAlpha=S.p.opacity*.4;
-    c.beginPath();c.moveTo(x-sz*.7,y-sz*.7);c.lineTo(x+sz*.7,y+sz*.7);
-    c.moveTo(x+sz*.7,y-sz*.7);c.lineTo(x-sz*.7,y+sz*.7);c.stroke();
+    c.globalAlpha=S.p.opacity*.35;
+    c.beginPath();c.moveTo(x-sz*.7,y-sz*.7);c.lineTo(x+sz*.7,y+sz*.7);c.moveTo(x+sz*.7,y-sz*.7);c.lineTo(x-sz*.7,y+sz*.7);c.stroke();
     c.globalAlpha=S.p.opacity;
   });
 }
 
-// SCAN — horizontal lines through tracked points
-function drawScanFromPts(c,w,h,pts,lw){
+function drawScan(c,w,h,pts,lw){
   c.lineWidth=lw;
-  const sortedPts=[...pts].sort((a,b)=>a[1]-b[1]);
-  sortedPts.forEach(([x,y],i)=>{
+  [...pts].sort((a,b)=>a[1]-b[1]).forEach(([x,y],i)=>{
     c.strokeStyle=getColor(i);
-    const x0=Math.max(0,x-w*.25),x1=Math.min(w,x+w*.25);
-    c.beginPath();c.moveTo(x0,y);c.lineTo(x1,y);c.stroke();
-    if(i%3===0){c.beginPath();c.moveTo(x,y-lw*4);c.lineTo(x,y+lw*4);c.stroke();}
+    c.beginPath();c.moveTo(Math.max(0,x-w*.22),y);c.lineTo(Math.min(w,x+w*.22),y);c.stroke();
+    if(i%2===0){c.beginPath();c.moveTo(x,y-lw*5);c.lineTo(x,y+lw*5);c.stroke();}
   });
 }
 
-// CIRCLES — circles centered at tracked points
-function drawCirclesFromPts(c,w,h,pts,lw){
+function drawCircles(c,w,h,pts,lw){
   c.lineWidth=lw;
   pts.forEach(([x,y],i)=>{
-    c.strokeStyle=getColor(i);
-    const r=Math.max(w*.018,8);
+    c.strokeStyle=getColor(i);const r=Math.max(w*.02,8);
     c.beginPath();c.arc(x,y,r,0,Math.PI*2);c.stroke();
-    if(i%2===0){c.globalAlpha=S.p.opacity*.4;c.beginPath();c.arc(x,y,r*.5,0,Math.PI*2);c.stroke();c.globalAlpha=S.p.opacity;}
+    if(i%2===0){c.globalAlpha=S.p.opacity*.35;c.beginPath();c.arc(x,y,r*.5,0,Math.PI*2);c.stroke();c.globalAlpha=S.p.opacity;}
     c.fillStyle=getColor(i);c.beginPath();c.arc(x,y,lw*1.5,0,Math.PI*2);c.fill();
   });
 }
 
-// TRIANGLES — triangles centered at tracked points
-function drawTriFromPts(c,w,h,pts,lw){
+function drawTri(c,w,h,pts,lw){
   c.lineWidth=lw;
   pts.forEach(([x,y],i)=>{
     c.strokeStyle=getColor(i);
-    const sz=Math.max(w*.022,10);
-    // connect to 2 nearest to form organic triangles
-    const near=pts.map((p,j)=>i===j?1e9:Math.hypot(p[0]-x,p[1]-y))
-      .map((d,j)=>[d,j]).sort((a,b)=>a[0]-b[0]).slice(0,2);
-    if(near.length>=2&&near[0][0]<w*.3){
-      const [,j1]=near[0],[,j2]=near[1];
-      c.beginPath();c.moveTo(x,y);c.lineTo(pts[j1][0],pts[j1][1]);
-      c.lineTo(pts[j2][0],pts[j2][1]);c.closePath();c.stroke();
+    const near=pts.map((p,j)=>i===j?1e9:Math.hypot(p[0]-x,p[1]-y)).map((d,j)=>[d,j]).sort((a,b)=>a[0]-b[0]).slice(0,2);
+    if(near.length>=2&&near[0][0]<w*.25){
+      c.beginPath();c.moveTo(x,y);c.lineTo(pts[near[0][1]][0],pts[near[0][1]][1]);
+      c.lineTo(pts[near[1][1]][0],pts[near[1][1]][1]);c.closePath();c.stroke();
     } else {
-      const rot=i*.7;
-      c.beginPath();
-      for(let v=0;v<3;v++){const a=rot+v*(Math.PI*2/3);v===0?c.moveTo(x+Math.cos(a)*sz,y+Math.sin(a)*sz):c.lineTo(x+Math.cos(a)*sz,y+Math.sin(a)*sz);}
+      const sz=Math.max(w*.02,10);
+      c.beginPath();for(let v=0;v<3;v++){const a=i*.5+v*(Math.PI*2/3);v===0?c.moveTo(x+Math.cos(a)*sz,y+Math.sin(a)*sz):c.lineTo(x+Math.cos(a)*sz,y+Math.sin(a)*sz);}
       c.closePath();c.stroke();
     }
     c.fillStyle=getColor(i);c.beginPath();c.arc(x,y,lw*1.5,0,Math.PI*2);c.fill();
   });
 }
 
-// GRID — grid lines through tracked point centroids
-function drawGridFromPts(c,w,h,pts,lw){
-  if(pts.length===0)return;
-  const cx=pts.reduce((s,p)=>s+p[0],0)/pts.length;
-  const cy=pts.reduce((s,p)=>s+p[1],0)/pts.length;
-  const spread=Math.min(w,h)*.35;
-  const cols=Math.min(S.p.lines,10)+2,rows=Math.min(S.p.lines,10)+3;
+function drawGrid(c,w,h,pts,lw){
+  if(!pts.length)return;
+  const cx=pts.reduce((s,p)=>s+p[0],0)/pts.length,cy=pts.reduce((s,p)=>s+p[1],0)/pts.length;
+  const sp=Math.min(w,h)*.38;const cols=Math.min(S.p.lines,12)+2,rows=Math.min(S.p.lines,12)+3;
   c.lineWidth=lw*.6;
-  for(let i=0;i<=cols;i++){
-    c.strokeStyle=getColor(i);
-    const x=cx-spread+i*(spread*2/cols);
-    c.beginPath();c.moveTo(x,cy-spread);c.lineTo(x,cy+spread);c.stroke();
-  }
-  for(let j=0;j<=rows;j++){
-    c.strokeStyle=getColor(j);
-    const y=cy-spread+j*(spread*2/rows);
-    c.beginPath();c.moveTo(cx-spread,y);c.lineTo(cx+spread,y);c.stroke();
-  }
+  for(let i=0;i<=cols;i++){c.strokeStyle=getColor(i);const x=cx-sp+i*(sp*2/cols);c.beginPath();c.moveTo(x,cy-sp);c.lineTo(x,cy+sp);c.stroke();}
+  for(let j=0;j<=rows;j++){c.strokeStyle=getColor(j);const y=cy-sp+j*(sp*2/rows);c.beginPath();c.moveTo(cx-sp,y);c.lineTo(cx+sp,y);c.stroke();}
   pts.forEach(([x,y],i)=>{c.fillStyle=getColor(i);c.beginPath();c.arc(x,y,lw*2,0,Math.PI*2);c.fill();});
 }
 
-// COORD LABELS at tracked point positions
-function drawCoordLabels(c,w,h,pts,isExport){
-  const fs=isExport?Math.max(12,w*.012):Math.max(9,w*.011);
+// COORD LABELS — sequential index + format
+function drawCoords(c,w,h,pts,isExport){
+  const fs=isExport?Math.max(12,w*.012):S.p.labelSize;
   c.font=`${fs}px 'Share Tech Mono',monospace`;
-  c.globalAlpha=.85;
-  const rand=rng(S.p.seed*999+Math.floor(vid.currentTime*10));
-  pts.forEach(([x,y])=>{
-    const lx=(x/w).toFixed(7).replace(/0+$/,'');
-    const ly=(y/h).toFixed(7).replace(/0+$/,'');
+  c.globalAlpha=S.p.labelOp;
+  pts.forEach(([x,y],i)=>{
+    const label=formatLabel(i,x,y,w,h);
+    const ox=x<w*.75?8:-70; // flip side near right edge
+    const oy=y>20?-5:14;
+    // optional leader line
+    if(S.fx.labelLine){
+      c.strokeStyle=S.wireColor;c.lineWidth=.4;c.globalAlpha=S.p.labelOp*.5;
+      c.beginPath();c.moveTo(x,y);c.lineTo(x+ox*.7,y+oy*.5);c.stroke();
+      c.globalAlpha=S.p.labelOp;
+    }
     c.fillStyle='#ffffff';
-    c.fillText(rand()>.5?lx:ly, x+(rand()>.5?6:-72), y-4);
+    c.fillText(label,x+ox,y+oy);
   });
   c.globalAlpha=S.p.opacity;
 }
@@ -776,7 +936,7 @@ function drawCoordLabels(c,w,h,pts,isExport){
 // ═══════════════════════════════════════════════
 document.getElementById('fileInput').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;loadVid(f);});
 function loadVid(file){
-  S.loaded=false;S.edgePoints=[];
+  S.loaded=false;S.edgePoints=[];S.prevLum=null;
   vid.src=URL.createObjectURL(file);vid.muted=true;vid.load();
   setStatus('LOADING — '+file.name.substring(0,26).toUpperCase());
 }
@@ -786,11 +946,9 @@ function loadVid(file){
   document.getElementById('vTotal').textContent=Math.round(vid.duration*30);
   document.getElementById('btnPngExport').disabled=false;
   document.getElementById('btnMp4Export').disabled=false;
-  dropZone.classList.add('hidden');
-  resize();
+  dropZone.classList.add('hidden');resize();
   setStatus(`${vid.videoWidth}×${vid.videoHeight} — ${vid.duration.toFixed(1)}s`);
-  checkMp4Support();
-  seekTo(.01);
+  checkMp4Support();seekTo(.01);
 }));
 
 function seekTo(t){
@@ -831,131 +989,182 @@ function togFx(key){
 }
 function setP(key,val){
   const n=parseFloat(val);
-  const map={
-    warp:[n/100,'vWarp',(v)=>v.toFixed(2)],
-    glitch:[n/100,'vGlitch',(v)=>v.toFixed(2)],
-    lines:[Math.floor(n),'vLines',(v)=>v],
-    seed:[Math.floor(n),'vSeed',(v)=>v],
-    opacity:[n/100,'vOpacity',(v)=>Math.round(v*100)+'%'],
-    lineW:[n/10,'vLineW',(v)=>v.toFixed(1)],
-    edge:[n/100,'vEdge',(v)=>Math.round(v*100)+'%'],
-    bias:[n/100,'vBias',(v)=>Math.round(v*100)+'%'],
-    sample:[Math.floor(n),'vSample',(v)=>`¼×`.replace('¼',['1','½','¼','⅛'][v-1]||v)],
-    minDist:[Math.floor(n),'vMinDist',(v)=>v+'px'],
+  const defs={
+    warp:[n/100,'vWarp',v=>v.toFixed(2)],
+    glitch:[n/100,'vGlitch',v=>v.toFixed(2)],
+    lines:[Math.floor(n),'vLines',v=>v],
+    seed:[Math.floor(n),'vSeed',v=>v],
+    opacity:[n/100,'vOpacity',v=>Math.round(v*100)+'%'],
+    lineW:[n/10,'vLineW',v=>v.toFixed(1)],
+    edge:[n/100,'vEdge',v=>Math.round(v*100)+'%'],
+    minDist:[Math.floor(n),'vMinDist',v=>v+'px'],
+    sample:[Math.floor(n),'vSample',v=>['1×','½×','¼×','⅛×'][v-1]||v+'×'],
+    labelSize:[Math.floor(n),'vLabelSize',v=>v+'px'],
+    labelOp:[n/100,'vLabelOp',v=>Math.round(v*100)+'%'],
   };
-  if(map[key]){
-    S.p[key]=map[key][0];
-    document.getElementById(map[key][1]).textContent=map[key][2](S.p[key]);
+  if(defs[key]){
+    S.p[key]=defs[key][0];
+    document.getElementById(defs[key][1]).textContent=defs[key][2](S.p[key]);
   }
-  if(key==='sample'){
-    const labels=['1×','½×','¼×','⅛×'];
-    document.getElementById('vSample').textContent=labels[Math.floor(n)-1]||n+'×';
-  }
-  S.edgePoints=[];// invalidate cache
+  S.edgePoints=[];
   if(S.loaded&&!S.playing)render();
 }
 
-// Color
-const SWATCHES=['#e8291c','#ff6b00','#ffdd00','#00e676','#00e5ff',
-  '#2979ff','#aa44ff','#ff4081','#ffffff','#aaaaaa','#111111','#00ffcc','#ff00ff','#ffe0b2','#1a237e'];
+const SWATCHES=['#e8291c','#ff6b00','#ffdd00','#00e676','#00e5ff','#2979ff','#aa44ff','#ff4081','#ffffff','#aaaaaa','#111111','#00ffcc','#ff00ff','#ffe0b2','#1a237e'];
 function initSwatches(){
   const grid=document.getElementById('swatchGrid');
   SWATCHES.forEach(col=>{
     const s=document.createElement('div');
     s.className='swatch'+(col===S.wireColor?' active':'');
-    s.style.background=col;s.title=col;
-    s.style.borderColor=col==='#111111'?'#333':'transparent';
+    s.style.background=col;s.title=col;s.style.borderColor=col==='#111111'?'#333':'transparent';
     s.onclick=()=>{document.querySelectorAll('.swatch').forEach(x=>x.classList.remove('active'));s.classList.add('active');S.wireColor=col;document.getElementById('colorPicker').value=col;document.getElementById('colorHex').textContent=col.toUpperCase();if(S.loaded&&!S.playing)render();};
     grid.appendChild(s);
   });
 }
-function setCustomColor(val){
-  S.wireColor=val;document.getElementById('colorHex').textContent=val.toUpperCase();
-  document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));
-  if(S.loaded&&!S.playing)render();
-}
+function setCustomColor(val){S.wireColor=val;document.getElementById('colorHex').textContent=val.toUpperCase();document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active'));if(S.loaded&&!S.playing)render();}
 function setQuality(scale,btn){S.exportScale=scale;document.querySelectorAll('.qbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');updateResBadge();}
 function setVQ(bps,btn){S.videoBitrate=bps;document.querySelectorAll('.vqbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
 function setFPS(fps,btn){S.videoFPS=fps;document.querySelectorAll('.vq-row')[1].querySelectorAll('.vqbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');}
 function switchExportTab(tab){
-  document.getElementById('tabPng').classList.toggle('on',tab==='png');document.getElementById('tabMp4').classList.toggle('on',tab==='mp4');
-  document.getElementById('secPng').classList.toggle('show',tab==='png');document.getElementById('secMp4').classList.toggle('show',tab==='mp4');
+  ['png','mp4'].forEach(t=>{document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('on',t===tab);document.getElementById('sec'+t.charAt(0).toUpperCase()+t.slice(1)).classList.toggle('show',t===tab);});
 }
 
 // ═══════════════════════════════════════════════
 // PRESETS
 // ═══════════════════════════════════════════════
 const PRESETS={
-  RAW: {wire:true,coord:true,warp:true,hglitch:true,chroma:false,multi:false,style:'mesh',w:50,g:50,l:8,s:42,col:'#e8291c',e:50,b:70},
-  WIRE:{wire:true,coord:true,warp:false,hglitch:false,chroma:false,multi:false,style:'rect-solid',w:0,g:0,l:8,s:42,col:'#ffffff',e:40,b:80},
-  CHAOS:{wire:true,coord:true,warp:true,hglitch:true,chroma:true,multi:true,style:'mesh',w:90,g:90,l:14,s:777,col:'#e8291c',e:30,b:60},
-  SOFT:{wire:true,coord:false,warp:true,hglitch:false,chroma:false,multi:false,style:'circle',w:30,g:20,l:6,s:100,col:'#00e5ff',e:60,b:85},
-  SCAN:{wire:true,coord:false,warp:false,hglitch:true,chroma:false,multi:false,style:'scan',w:0,g:70,l:8,s:55,col:'#00e676',e:50,b:90},
-  DATA:{wire:true,coord:true,warp:true,hglitch:true,chroma:true,multi:true,style:'triangle',w:60,g:60,l:12,s:333,col:'#aa44ff',e:35,b:75},
+  RAW: {wire:true,coord:true,warp:true,hglitch:true,chroma:false,multi:false,style:'mesh',w:50,g:50,l:10,s:42,col:'#e8291c',e:50,track:'edge',cs:'index'},
+  WIRE:{wire:true,coord:true,warp:false,hglitch:false,chroma:false,multi:false,style:'rect-solid',w:0,g:0,l:10,s:42,col:'#ffffff',e:40,track:'edge',cs:'xy'},
+  CHAOS:{wire:true,coord:true,warp:true,hglitch:true,chroma:true,multi:true,style:'mesh',w:90,g:90,l:14,s:777,col:'#e8291c',e:30,track:'contour',cs:'norm'},
+  SOFT:{wire:true,coord:false,warp:true,hglitch:false,chroma:false,multi:false,style:'circle',w:30,g:20,l:8,s:100,col:'#00e5ff',e:55,track:'subject',cs:'index'},
+  SCAN:{wire:true,coord:true,warp:false,hglitch:true,chroma:false,multi:false,style:'scan',w:0,g:70,l:10,s:55,col:'#00e676',e:50,track:'motion',cs:'mixed'},
+  DATA:{wire:true,coord:true,warp:true,hglitch:true,chroma:true,multi:true,style:'triangle',w:60,g:60,l:12,s:333,col:'#aa44ff',e:35,track:'subject',cs:'index'},
 };
 function applyPreset(name,btn){
   document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   const p=PRESETS[name];if(!p)return;
-  ['wire','coord','warp','hglitch','chroma','multi'].forEach(k=>{
-    S.fx[k]=p[k];const el=document.getElementById('t'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.classList.toggle('on',p[k]);
-  });
+  ['wire','coord','warp','hglitch','chroma','multi'].forEach(k=>{S.fx[k]=p[k];const el=document.getElementById('t'+k.charAt(0).toUpperCase()+k.slice(1));if(el)el.classList.toggle('on',p[k]);});
   setWireStyle(p.style);
-  S.p.warp=p.w/100;S.p.glitch=p.g/100;S.p.lines=p.l;S.p.seed=p.s;S.p.edge=p.e/100;S.p.bias=p.b/100;
-  S.wireColor=p.col;S.edgePoints=[];
+  S.p.warp=p.w/100;S.p.glitch=p.g/100;S.p.lines=p.l;S.p.seed=p.s;S.p.edge=p.e/100;
+  S.wireColor=p.col;S.edgePoints=[];S.prevLum=null;
+  // Set track mode
+  S.trackMode=p.track;document.querySelectorAll('.track-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===p.track));
+  // Set coord style
+  setCoordStyle(p.cs);
   document.getElementById('sWarp').value=p.w;document.getElementById('vWarp').textContent=S.p.warp.toFixed(2);
   document.getElementById('sGlitch').value=p.g;document.getElementById('vGlitch').textContent=S.p.glitch.toFixed(2);
   document.getElementById('sLines').value=p.l;document.getElementById('vLines').textContent=p.l;
   document.getElementById('sSeed').value=p.s;document.getElementById('vSeed').textContent=p.s;
   document.getElementById('sEdge').value=p.e;document.getElementById('vEdge').textContent=p.e+'%';
-  document.getElementById('sBias').value=p.b;document.getElementById('vBias').textContent=p.b+'%';
   document.getElementById('colorPicker').value=p.col;document.getElementById('colorHex').textContent=p.col.toUpperCase();
   document.querySelectorAll('.swatch').forEach(s=>s.classList.toggle('active',s.title===p.col));
   if(S.loaded&&!S.playing)render();
 }
 
 // ═══════════════════════════════════════════════
-// PNG EXPORT
+// EXPORT — PNG
 // ═══════════════════════════════════════════════
-async function doPngExport(){
-  if(!S.loaded)return;if(S.playing)togglePlay();
-  const n=parseInt(document.getElementById('eFrames').value)||12;
-  const startT=(parseFloat(document.getElementById('eStart').value)/100)*S.duration;
-  const endT=Math.min((parseFloat(document.getElementById('eEnd').value)/100)*S.duration,S.duration);
-  const step=(endT-startT)/Math.max(n-1,1);
-  const ew=Math.round(vid.videoWidth*S.exportScale),eh=Math.round(vid.videoHeight*S.exportScale);
-  showProg(true);setBtnDisabled('btnPngExport',true);
-  const ogl=makeOffscreenGL(ew,eh);
-  const ec=document.createElement('canvas');ec.width=ew;ec.height=eh;
-  const ectx=ec.getContext('2d');
-  for(let i=0;i<n;i++){
-    setProg(i/n,`FRAME ${i+1}/${n} — ${ew}×${eh}`);
-    await seekVid(startT+i*step);
-    // rebuild edge at export resolution
-    const exportPts=buildEdgePoints(ew,eh);
-    renderOffscreen(ogl,ew,eh);
-    ectx.clearRect(0,0,ew,eh);ectx.drawImage(ogl.canvas,0,0,ew,eh);
-    if(S.fx.wire)drawWireOverlay(ectx,ew,eh,vid.currentTime,true,exportPts);
-    await dlCanvas(ec,`GLITCH_${String(i+1).padStart(4,'0')}.png`);
-    await sleep(80);
-  }
-  setProg(1,`✓ ${n} FRAMES SAVED`);setBtnDisabled('btnPngExport',false);
-  setTimeout(()=>showProg(false),3500);
+S.pngMode = 'manual';   // 'manual' | 'all'
+S.pngFps  = 24;
+S.pngCancelFlag = false;
+
+function setPngMode(mode){
+  S.pngMode = mode;
+  document.getElementById('pModeManual').classList.toggle('on', mode==='manual');
+  document.getElementById('pModeAll').classList.toggle('on',    mode==='all');
+  document.getElementById('pManualControls').style.display = mode==='manual' ? '' : 'none';
+  document.getElementById('pAllControls').style.display    = mode==='all'    ? '' : 'none';
+  if(mode==='all') updateAllFrameCount();
 }
 
-// ═══════════════════════════════════════════════
-// MP4 EXPORT
-// ═══════════════════════════════════════════════
+function setPngFps(fps, btn){
+  S.pngFps = fps;
+  document.querySelectorAll('#pAllControls .qsel .qbtn').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  updateAllFrameCount();
+}
+
+function updateAllFrameCount(){
+  if(!S.loaded) return;
+  const el = document.getElementById('allFrameCount');
+  const startT = (parseFloat(document.getElementById('eAllStart').value)||0)/100 * S.duration;
+  const endT   = Math.min((parseFloat(document.getElementById('eAllEnd').value)||100)/100 * S.duration, S.duration);
+  const n = Math.floor((endT - startT) * S.pngFps);
+  el.textContent = `≈ ${n} frames  (${(endT-startT).toFixed(1)}s × ${S.pngFps}fps)`;
+  el.style.display = 'block';
+}
+// live update when range inputs change
+['eAllStart','eAllEnd'].forEach(id=>{
+  document.addEventListener('input', e=>{ if(e.target.id===id && S.pngMode==='all') updateAllFrameCount(); });
+});
+
+async function doPngExport(){
+  if(!S.loaded) return;
+  if(S.playing) togglePlay();
+  S.pngCancelFlag = false;
+
+  const ew = Math.round(vid.videoWidth  * S.exportScale);
+  const eh = Math.round(vid.videoHeight * S.exportScale);
+
+  let startT, endT, n, step;
+
+  if(S.pngMode === 'all'){
+    startT = (parseFloat(document.getElementById('eAllStart').value)||0)/100 * S.duration;
+    endT   = Math.min((parseFloat(document.getElementById('eAllEnd').value)||100)/100 * S.duration, S.duration);
+    n      = Math.max(1, Math.floor((endT - startT) * S.pngFps));
+    step   = 1 / S.pngFps;
+  } else {
+    n      = parseInt(document.getElementById('eFrames').value) || 12;
+    startT = (parseFloat(document.getElementById('eStart').value)||0)/100 * S.duration;
+    endT   = Math.min((parseFloat(document.getElementById('eEnd').value)||100)/100 * S.duration, S.duration);
+    step   = (endT - startT) / Math.max(n - 1, 1);
+  }
+
+  showProg(true);
+  setBtnDisabled('btnPngExport', true);
+  document.getElementById('btnPngStop').style.display = 'block';
+
+  const ogl  = makeOffscreenGL(ew, eh);
+  const ec   = document.createElement('canvas'); ec.width=ew; ec.height=eh;
+  const ectx = ec.getContext('2d');
+  S.prevLum  = null;
+
+  for(let i=0; i<n; i++){
+    if(S.pngCancelFlag) break;
+
+    const t = S.pngMode==='all' ? startT + i * step : startT + i * step;
+    setProg(i/n, `FRAME ${i+1}/${n}  —  ${ew}×${eh}  (${t.toFixed(2)}s)`);
+
+    await seekVid(t);
+    const exportPts = buildEdgePoints(ew, eh);
+    renderOffscreen(ogl, ew, eh);
+    ectx.clearRect(0,0,ew,eh);
+    ectx.drawImage(ogl.canvas, 0,0, ew,eh);
+    if(S.fx.wire) drawWireOverlay(ectx, ew, eh, vid.currentTime, true, exportPts);
+    await dlCanvas(ec, `GLITCH_${String(i+1).padStart(5,'0')}.png`);
+    await sleep(60);
+  }
+
+  const saved = S.pngCancelFlag ? 'CANCELLED' : `✓ ${n} FRAMES SAVED`;
+  setProg(1, saved);
+  setBtnDisabled('btnPngExport', false);
+  document.getElementById('btnPngStop').style.display = 'none';
+  S.pngCancelFlag = false;
+  setTimeout(()=>showProg(false), 4000);
+}
+
+function stopPngExport(){
+  S.pngCancelFlag = true;
+}
+
 function checkMp4Support(){
   const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
-  const supported=types.find(t=>MediaRecorder.isTypeSupported(t));
+  const sup=types.find(t=>MediaRecorder.isTypeSupported(t));
   const el=document.getElementById('mp4Support');
-  if(supported){el.textContent=`CODEC: ${supported}`;el.style.color='#2a6b2e';}
+  if(sup){el.textContent=`CODEC: ${sup}`;el.style.color='#2a6b2e';}
   else{el.textContent='⚠ MediaRecorder not supported';el.style.color='#b71c1c';document.getElementById('btnMp4Export').disabled=true;}
 }
-function getSupportedMime(){
-  const types=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
-  return types.find(t=>MediaRecorder.isTypeSupported(t))||'video/webm';
-}
+function getSupportedMime(){const t=['video/mp4;codecs=avc1','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];return t.find(x=>MediaRecorder.isTypeSupported(x))||'video/webm';}
 let recCanvas=null,recCtx=null;
 async function doMp4Export(){
   if(!S.loaded)return;if(S.playing)togglePlay();
@@ -963,60 +1172,46 @@ async function doMp4Export(){
   const endT=Math.min((parseFloat(document.getElementById('mEnd').value)/100)*S.duration,S.duration);
   recCanvas=document.createElement('canvas');recCanvas.width=S.dispW;recCanvas.height=S.dispH;
   recCtx=recCanvas.getContext('2d');
-  const mimeType=getSupportedMime();const ext=mimeType.startsWith('video/mp4')?'mp4':'webm';
-  S.recChunks=[];
+  const mime=getSupportedMime();const ext=mime.startsWith('video/mp4')?'mp4':'webm';
+  S.recChunks=[];S.prevLum=null;
   const stream=recCanvas.captureStream(S.videoFPS);
-  S.mediaRec=new MediaRecorder(stream,{mimeType,videoBitsPerSecond:S.videoBitrate});
+  S.mediaRec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:S.videoBitrate});
   S.mediaRec.ondataavailable=e=>{if(e.data.size>0)S.recChunks.push(e.data);};
-  S.mediaRec.onstop=()=>saveRecording(ext);
-  S.mediaRec.start(100);
+  S.mediaRec.onstop=()=>saveRecording(ext);S.mediaRec.start(100);
   document.getElementById('btnMp4Export').style.display='none';
   document.getElementById('btnMp4Stop').style.display='block';
-  document.getElementById('recDot').classList.add('show');
-  showProg(true);
-  await seekVid(startT);
-  vid.currentTime=startT;vid.play();S.playing=true;
+  document.getElementById('recDot').classList.add('show');showProg(true);
+  await seekVid(startT);vid.currentTime=startT;vid.play();S.playing=true;
   document.getElementById('btnPlay').textContent='⏸ PAUSE';document.getElementById('btnPlay').classList.add('on');
   let lastT=-1;
   function recLoop(){
     if(!S.mediaRec||S.mediaRec.state!=='recording'){stopMp4();return;}
     const t=vid.currentTime;if(t>=endT){stopMp4();return;}
     const pct=(t-startT)/(endT-startT);
-    setProg(pct,`REC ${t.toFixed(2)}s / ${endT.toFixed(2)}s — ${(pct*100).toFixed(0)}%`);
+    setProg(pct,`REC ${t.toFixed(2)}s / ${endT.toFixed(2)}s`);
     if(t!==lastT){
       lastT=t;
-      if(Math.abs(t-S.lastEdgeTime)>0.03||S.edgePoints.length===0){
-        S.edgePoints=buildEdgePoints(recCanvas.width,recCanvas.height);S.lastEdgeTime=t;
-      }
-      glPass();
-      recCtx.clearRect(0,0,recCanvas.width,recCanvas.height);
+      if(Math.abs(t-S.lastEdgeTime)>0.025||S.edgePoints.length===0){S.edgePoints=buildEdgePoints(recCanvas.width,recCanvas.height);S.lastEdgeTime=t;}
+      glPass();recCtx.clearRect(0,0,recCanvas.width,recCanvas.height);
       recCtx.drawImage(glCanvas,0,0,recCanvas.width,recCanvas.height);
       if(S.fx.wire)drawWireOverlay(recCtx,recCanvas.width,recCanvas.height,t,false,S.edgePoints);
     }
     updateUI();S.rafId=requestAnimationFrame(recLoop);
-  }
-  recLoop();
+  }recLoop();
 }
 function stopMp4(){
-  cancelAnimationFrame(S.rafId);
-  if(S.mediaRec&&S.mediaRec.state!=='inactive')S.mediaRec.stop();
-  vid.pause();S.playing=false;
-  document.getElementById('btnPlay').textContent='▶ PLAY';document.getElementById('btnPlay').classList.remove('on');
+  cancelAnimationFrame(S.rafId);if(S.mediaRec&&S.mediaRec.state!=='inactive')S.mediaRec.stop();
+  vid.pause();S.playing=false;document.getElementById('btnPlay').textContent='▶ PLAY';document.getElementById('btnPlay').classList.remove('on');
   document.getElementById('btnMp4Export').style.display='block';document.getElementById('btnMp4Stop').style.display='none';
   document.getElementById('recDot').classList.remove('show');
 }
 function saveRecording(ext){
   const blob=new Blob(S.recChunks,{type:S.mediaRec.mimeType});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');a.href=url;a.download=`GLITCH_OUTPUT.${ext}`;a.click();
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`GLITCH_OUTPUT.${ext}`;a.click();
   setTimeout(()=>URL.revokeObjectURL(url),5000);
-  setProg(1,`✓ SAVED AS GLITCH_OUTPUT.${ext.toUpperCase()}`);
-  setBtnDisabled('btnMp4Export',false);setTimeout(()=>showProg(false),4000);
+  setProg(1,`✓ SAVED AS GLITCH_OUTPUT.${ext.toUpperCase()}`);setBtnDisabled('btnMp4Export',false);setTimeout(()=>showProg(false),4000);
 }
 
-// ═══════════════════════════════════════════════
-// OFFSCREEN GL
-// ═══════════════════════════════════════════════
 function makeOffscreenGL(w,h){
   const c=document.createElement('canvas');c.width=w;c.height=h;
   const og=c.getContext('webgl',{preserveDrawingBuffer:true,antialias:true});
@@ -1024,59 +1219,37 @@ function makeOffscreenGL(w,h){
   function ms(t,s){const sh=og.createShader(t);og.shaderSource(sh,s);og.compileShader(sh);return sh;}
   og.attachShader(ogp,ms(og.VERTEX_SHADER,VS));og.attachShader(ogp,ms(og.FRAGMENT_SHADER,FS));
   og.linkProgram(ogp);og.useProgram(ogp);
-  const ob=og.createBuffer();og.bindBuffer(og.ARRAY_BUFFER,ob);
-  og.bufferData(og.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),og.STATIC_DRAW);
+  const ob=og.createBuffer();og.bindBuffer(og.ARRAY_BUFFER,ob);og.bufferData(og.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),og.STATIC_DRAW);
   const al=og.getAttribLocation(ogp,'a');og.enableVertexAttribArray(al);og.vertexAttribPointer(al,2,og.FLOAT,false,0,0);
   const ot=og.createTexture();og.bindTexture(og.TEXTURE_2D,ot);
   ['WRAP_S','WRAP_T'].forEach(p=>og.texParameteri(og.TEXTURE_2D,og[`TEXTURE_${p}`],og.CLAMP_TO_EDGE));
   ['MIN','MAG'].forEach(p=>og.texParameteri(og.TEXTURE_2D,og[`TEXTURE_${p}_FILTER`],og.LINEAR));
   og.viewport(0,0,w,h);
-  return{gl:og,canvas:c,tex:ot,
-    uT:og.getUniformLocation(ogp,'tex'),uW:og.getUniformLocation(ogp,'uWarp'),
-    uG:og.getUniformLocation(ogp,'uGlitch'),uSe:og.getUniformLocation(ogp,'uSeed'),
-    uTi:og.getUniformLocation(ogp,'uTime'),uF:og.getUniformLocation(ogp,'uFlags')};
+  return{gl:og,canvas:c,tex:ot,uT:og.getUniformLocation(ogp,'tex'),uW:og.getUniformLocation(ogp,'uWarp'),uG:og.getUniformLocation(ogp,'uGlitch'),uSe:og.getUniformLocation(ogp,'uSeed'),uTi:og.getUniformLocation(ogp,'uTime'),uF:og.getUniformLocation(ogp,'uFlags')};
 }
 function renderOffscreen(o,w,h){
   const{gl:og}=o;og.bindTexture(og.TEXTURE_2D,o.tex);
   try{og.texImage2D(og.TEXTURE_2D,0,og.RGBA,og.RGBA,og.UNSIGNED_BYTE,vid);}catch(e){return;}
   og.uniform1i(o.uT,0);og.uniform1f(o.uW,S.fx.warp?S.p.warp:0);og.uniform1f(o.uG,S.fx.hglitch?S.p.glitch:0);
   og.uniform1f(o.uSe,S.p.seed);og.uniform1f(o.uTi,vid.currentTime);
-  og.uniform1i(o.uF,(S.fx.warp?1:0)|(S.fx.hglitch?2:0)|(S.fx.chroma?4:0));
-  og.drawArrays(og.TRIANGLE_STRIP,0,4);
+  og.uniform1i(o.uF,(S.fx.warp?1:0)|(S.fx.hglitch?2:0)|(S.fx.chroma?4:0));og.drawArrays(og.TRIANGLE_STRIP,0,4);
 }
 
-// ═══════════════════════════════════════════════
-// UTILS
-// ═══════════════════════════════════════════════
-function seekVid(t){
-  return new Promise(res=>{
-    const fb=setTimeout(()=>{render();res();},800);
-    const h=()=>{clearTimeout(fb);vid.removeEventListener('seeked',h);render();res();};
-    vid.addEventListener('seeked',h);vid.currentTime=Math.max(0,Math.min(t,S.duration-.001));
-  });
-}
-function dlCanvas(c,name){
-  return new Promise(res=>{
-    c.toBlob(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(res,60);},'image/png');
-  });
-}
+function seekVid(t){return new Promise(res=>{const fb=setTimeout(()=>{render();res();},800);const h=()=>{clearTimeout(fb);vid.removeEventListener('seeked',h);render();res();};vid.addEventListener('seeked',h);vid.currentTime=Math.max(0,Math.min(t,S.duration-.001));});}
+function dlCanvas(c,name){return new Promise(res=>{c.toBlob(blob=>{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();setTimeout(res,60);},'image/png');});}
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 function setStatus(t){document.getElementById('statusText').textContent=t;}
 function showProg(v){document.getElementById('prog').classList.toggle('show',v);}
 function setProg(pct,lbl){document.getElementById('progFill').style.width=(pct*100)+'%';document.getElementById('progLbl').textContent=lbl;}
 function setBtnDisabled(id,v){document.getElementById(id).disabled=v;}
 
-// ═══════════════════════════════════════════════
-// DRAG & DROP
-// ═══════════════════════════════════════════════
 dropZone.addEventListener('click',()=>document.getElementById('fileInput').click());
 stage.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
 stage.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
 stage.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');const f=e.dataTransfer.files[0];if(f&&f.type.startsWith('video/'))loadVid(f);});
 
-// ═══════════════════════════════════════════════
 // INIT
-// ═══════════════════════════════════════════════
+initTrackGrid();
 initStyleGrid();
 initSwatches();
 checkMp4Support();
